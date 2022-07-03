@@ -698,7 +698,7 @@ function onDwell(seconds) {
   if (seconds > maxValue) {
     warning(subst(localize("Dwelling time of '%1' exceeds the maximum value of '%2' in operation '%3'"), seconds, maxValue, getParameter("operation-comment", "")));
   }
-  seconds = clamp(1, seconds, 99999999);
+  seconds = clamp(0, seconds, 99999999);
   writeBlock(gFormat.format(4), "P" + secFormat.format(seconds));
 }
 
@@ -773,7 +773,7 @@ function writeDrillCycle(cycle, x, y, z) {
 
     writeBlock(gFeedModeModal.format(94));
     var F = cycle.feedrate;
-    var P = !cycle.dwell ? 0 : clamp(1, cycle.dwell, 99999999); // in seconds
+    var P = !cycle.dwell ? 0 : cycle.dwell; // in seconds
 
     // tapping variables
     var threadPitch = tool.threadPitch;
