@@ -1479,7 +1479,7 @@ function onCyclePoint(x, y, z) {
     }
 
     var F = cycle.feedrate;
-    var P = !cycle.dwell ? 0 : clamp(1, cycle.dwell, 99999999); // in seconds
+    var P = !cycle.dwell ? 0 : cycle.dwell; // in seconds
 
     // tapping variables
     var tapUnit = unit;
