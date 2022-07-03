@@ -605,7 +605,7 @@ function onDwell(seconds) {
   if (seconds > 99999.999) {
     warning(localize("Dwelling time is out of range."));
   }
-  seconds = clamp(1, seconds, 99999999);
+  seconds = clamp(0, seconds, 99999999);
   writeBlock(gFeedModeModal.format(94), gFormat.format(4), "P" + secFormat.format(seconds));
 }
 
@@ -674,7 +674,7 @@ function writeDrillCycle(cycle, x, y, z) {
     }
 
     var F = cycle.feedrate;
-    var P = !cycle.dwell ? 0 : clamp(1, cycle.dwell, 99999999); // in seconds
+    var P = !cycle.dwell ? 0 : cycle.dwell; // in seconds
 
     // tapping variables
     var threadPitch = tool.threadPitch;
