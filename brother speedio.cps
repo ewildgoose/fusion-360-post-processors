@@ -1745,6 +1745,7 @@ function onCyclePoint(x, y, z) {
       protectedProbeMove(cycle, x, y, Math.min(z - cycle.depth + cycle.probeClearance, cycle.retract));
       writeBlock(
         gFormat.format(65), "P" + (getProperty("probingType") == "Renishaw" ? 8811 : 8700),
+        getProperty("probingType") == "Renishaw" ? "" : "A1",
         "Z" + xyzFormat.format(z - cycle.depth),
         "Q" + xyzFormat.format(cycle.probeOvertravel),
         getProbingArguments(cycle, true)
