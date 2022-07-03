@@ -3311,3 +3311,10 @@ function onClose() {
 function setProperty(property, value) {
   properties[property].current = value;
 }
+
+function onPassThrough(text) {
+  var commands = String(text).split(",");
+  for (text in commands) {
+    writeBlock(commands[text]);
+  }
+}
