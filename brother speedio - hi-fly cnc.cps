@@ -2240,6 +2240,8 @@ function onRadiusCompensation() {
 }
 
 function onPassThrough(text) {
+  writeln("");
+  writeComment("Manual NC Passthrough");
   var commands = String(text).split(",");
   for (text in commands) {
     writeBlock(commands[text]);
