@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 43615 bad9507b472879bc92ad05d1deff7aed353e913d $
-  $Date: 2022-01-26 23:53:14 $
+  $Revision: 43648 445bd88afb8b02f8c67d0ad044040bbaf2db7129 $
+  $Date: 2022-02-17 08:22:48 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -1481,7 +1481,7 @@ function onCyclePoint(x, y, z) {
     switch (cycleType) {
     case "drilling":
       writeBlock(
-        gCycleModal.format(81),
+        gRetractModal.format(98), gCycleModal.format(81),
         getCommonCycle(x, y, z, cycle.retract),
         cyclefeedOutput.format(F)
       );
@@ -1489,14 +1489,14 @@ function onCyclePoint(x, y, z) {
     case "counter-boring":
       if (P > 0) {
         writeBlock(
-          gCycleModal.format(82),
+          gRetractModal.format(98), gCycleModal.format(82),
           getCommonCycle(x, y, z, cycle.retract),
           "P" + secFormat.format(P),
           cyclefeedOutput.format(F)
         );
       } else {
         writeBlock(
-          gCycleModal.format(81),
+          gRetractModal.format(98), gCycleModal.format(81),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           cyclefeedOutput.format(F)
         );
@@ -1507,7 +1507,7 @@ function onCyclePoint(x, y, z) {
         expandCyclePoint(x, y, z);
       } else {
         writeBlock(
-          gCycleModal.format(73),
+          gRetractModal.format(98), gCycleModal.format(73),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           "Q" + xyzFormat.format(cycle.incrementalDepth),
           cyclefeedOutput.format(F)
@@ -1519,7 +1519,7 @@ function onCyclePoint(x, y, z) {
         expandCyclePoint(x, y, z);
       } else {
         writeBlock(
-          gCycleModal.format(83),
+          gRetractModal.format(98), gCycleModal.format(83),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           "Q" + xyzFormat.format(cycle.incrementalDepth),
           // conditional(P > 0, "P" + secFormat.format(P)),
@@ -1533,7 +1533,7 @@ function onCyclePoint(x, y, z) {
       }
       if (getProperty("usePitchForTapping")) {
         writeBlock(
-          gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 77),
+          gRetractModal.format(98), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 77),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           conditional((P != 0), "P" + secFormat.format(P)),
           conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
@@ -1542,7 +1542,7 @@ function onCyclePoint(x, y, z) {
         );
       } else {
         writeBlock(
-          gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 77),
+          gRetractModal.format(98), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 77),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           "P" + secFormat.format(P),
           cyclefeedOutput.format(F)
@@ -1555,7 +1555,7 @@ function onCyclePoint(x, y, z) {
       }
       if (getProperty("usePitchForTapping")) {
         writeBlock(
-          gCycleModal.format(74),
+          gRetractModal.format(98), gCycleModal.format(74),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           conditional((P != 0), "P" + secFormat.format(P)),
           conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
@@ -1564,7 +1564,7 @@ function onCyclePoint(x, y, z) {
         );
       } else {
         writeBlock(
-          gCycleModal.format(74),
+          gRetractModal.format(98), gCycleModal.format(74),
           getCommonCycle(x, y, z, cycle.retract),
           "P" + secFormat.format(P),
           cyclefeedOutput.format(F)
@@ -1577,7 +1577,7 @@ function onCyclePoint(x, y, z) {
       }
       if (getProperty("usePitchForTapping")) {
         writeBlock(
-          gCycleModal.format(77),
+          gRetractModal.format(98), gCycleModal.format(77),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           conditional((P != 0), "P" + secFormat.format(P)),
           conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
@@ -1586,7 +1586,7 @@ function onCyclePoint(x, y, z) {
         );
       } else {
         writeBlock(
-          gCycleModal.format(77),
+          gRetractModal.format(98), gCycleModal.format(77),
           getCommonCycle(x, y, z, cycle.retract),
           "P" + secFormat.format(P),
           cyclefeedOutput.format(F)
@@ -1605,7 +1605,7 @@ function onCyclePoint(x, y, z) {
         }
         if (getProperty("usePitchForTapping")) {
           writeBlock(
-            gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 77),
+            gRetractModal.format(98), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 77),
             getCommonCycle(x, y, cycle.bottom, cycle.retract),
             conditional((P != 0), "P" + secFormat.format(P)),
             "Q" + xyzFormat.format(cycle.incrementalDepth),
@@ -1615,7 +1615,7 @@ function onCyclePoint(x, y, z) {
           );
         } else {
           writeBlock(
-            gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND ? 74 : 77)),
+            gRetractModal.format(98), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND ? 74 : 77)),
             getCommonCycle(x, y, z, cycle.retract),
             "P" + secFormat.format(P),
             "Q" + xyzFormat.format(cycle.incrementalDepth),
@@ -1626,7 +1626,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "fine-boring":
       writeBlock(
-        gCycleModal.format(76),
+        gRetractModal.format(98), gCycleModal.format(76),
         getCommonCycle(x, y, z, cycle.retract),
         "P" + secFormat.format(P), // not optional
         "Q" + xyzFormat.format(cycle.shift),
@@ -1638,7 +1638,7 @@ function onCyclePoint(x, y, z) {
       var dy = (gPlaneModal.getCurrent() == 18) ? cycle.backBoreDistance : 0;
       var dz = (gPlaneModal.getCurrent() == 17) ? cycle.backBoreDistance : 0;
       writeBlock(
-        gCycleModal.format(87),
+        gRetractModal.format(98), gCycleModal.format(87),
         getCommonCycle(x, y, cycle.bottom - cycle.backBoreDistance, cycle.bottom),
         "Q" + xyzFormat.format(cycle.shift),
         "P" + secFormat.format(P), // not optional
@@ -1648,14 +1648,14 @@ function onCyclePoint(x, y, z) {
     case "reaming":
       if (P > 0) {
         writeBlock(
-          gCycleModal.format(89),
+          gRetractModal.format(98), gCycleModal.format(89),
           getCommonCycle(x, y, z, cycle.retract),
           "P" + secFormat.format(P),
           cyclefeedOutput.format(F)
         );
       } else {
         writeBlock(
-          gCycleModal.format(85),
+          gRetractModal.format(98), gCycleModal.format(85),
           getCommonCycle(x, y, z, cycle.retract),
           cyclefeedOutput.format(F)
         );
@@ -1666,7 +1666,7 @@ function onCyclePoint(x, y, z) {
         expandCyclePoint(x, y, z);
       } else {
         writeBlock(
-          gCycleModal.format(86),
+          gRetractModal.format(98), gCycleModal.format(86),
           getCommonCycle(x, y, z, cycle.retract),
           cyclefeedOutput.format(F)
         );
@@ -1674,7 +1674,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "manual-boring":
       writeBlock(
-        gCycleModal.format(88),
+        gRetractModal.format(98), gCycleModal.format(88),
         getCommonCycle(x, y, z, cycle.retract),
         "P" + secFormat.format(P), // not optional
         cyclefeedOutput.format(F)
@@ -1683,14 +1683,14 @@ function onCyclePoint(x, y, z) {
     case "boring":
       if (P > 0) {
         writeBlock(
-          gCycleModal.format(89),
+          gRetractModal.format(98), gCycleModal.format(89),
           getCommonCycle(x, y, z, cycle.retract),
           "P" + secFormat.format(P), // not optional
           cyclefeedOutput.format(F)
         );
       } else {
         writeBlock(
-          gCycleModal.format(85),
+          gRetractModal.format(98), gCycleModal.format(85),
           getCommonCycle(x, y, z, cycle.retract),
           cyclefeedOutput.format(F)
         );
