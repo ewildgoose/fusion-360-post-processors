@@ -1,11 +1,11 @@
 /**
-  Copyright (C) 2012-2021 by Autodesk, Inc.
+  Copyright (C) 2012-2022 by Autodesk, Inc.
   All rights reserved.
 
   Brother Speedio post processor configuration.
 
-  $Revision: 43554 a19c569c9f7fe055fc222095112d3f1eebc74b63 $
-  $Date: 2021-12-02 17:56:05 $
+  $Revision: 43615 bad9507b472879bc92ad05d1deff7aed353e913d $
+  $Date: 2022-01-26 23:53:14 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -13,7 +13,7 @@
 description = "Brother Speedio";
 vendor = "Brother";
 vendorUrl = "http://www.brother.com";
-legal = "Copyright (C) 2012-2021 by Autodesk, Inc.";
+legal = "Copyright (C) 2012-2022 by Autodesk, Inc.";
 certificationLevel = 2;
 minimumRevision = 45702;
 
@@ -323,9 +323,9 @@ var probeVariables = {
 
 // collected state
 var sequenceNumber;
+var forceSpindleSpeed = false;
 var currentWorkOffset;
 var optionalSection = false;
-var forceSpindleSpeed = false;
 var activeMovements; // do not use by default
 var currentFeedId;
 var retracted = false; // specifies that the tool has been retracted to the safe plane
@@ -1118,12 +1118,11 @@ function onSection() {
     setRotation(remaining);
   }
 
-  isSpeedDifferent = false;
-  if (tool.type != TOOL_PROBE && (insertToolCall ||
-    isFirstSection() ||
+  var spindleChanged = tool.type != TOOL_PROBE &&
+    (insertToolCall || forceSpindleSpeed || isFirstSection() ||
     (rpmFormat.areDifferent(spindleSpeed, getPreviousSection().getTool().spindleRPM)) ||
-    (tool.clockwise != getPreviousSection().getTool().clockwise))) {
-    isSpeedDifferent = true;
+    (tool.clockwise != getPreviousSection().getTool().clockwise));
+  if (spindleChanged) {
     if (spindleSpeed < 1) {
       error(localize("Spindle speed out of range."));
       return;
@@ -1161,6 +1160,7 @@ function onSection() {
       conditional(tool.type != TOOL_PROBE, sOutput.format(spindleSpeed)),
       conditional(tool.type != TOOL_PROBE, mFormat.format(tool.clockwise ? 3 : 4))
     );
+    forceSpindleSpeed = false;
 
     if (tool.comment) {
       writeComment(tool.comment);
@@ -1195,8 +1195,9 @@ function onSection() {
         }
       }
     }
-  } else if (tool.type != TOOL_PROBE && isSpeedDifferent) {
+  } else if (spindleChanged) {
     writeBlock(sOutput.format(spindleSpeed));
+    forceSpindleSpeed = false;
   }
 
   onCommand(COMMAND_START_CHIP_TRANSPORT);
@@ -2885,6 +2886,7 @@ function onCircular(clockwise, cx, cy, cz, x, y, z, feed) {
 
 var currentCoolantMode = COOLANT_OFF;
 var coolantOff = undefined;
+var forceCoolant = false;
 var firstThrough = true;
 var addDwell = false;
 
@@ -2911,10 +2913,10 @@ function getCoolantCodes(coolant) {
   if (tool.type == TOOL_PROBE) { // avoid coolant output for probing
     coolant = COOLANT_OFF;
   }
-  if (coolant == currentCoolantMode) {
+  if (coolant == currentCoolantMode && (!forceCoolant || coolant == COOLANT_OFF)) {
     return undefined; // coolant is already active
   }
-  if ((coolant != COOLANT_OFF) && (currentCoolantMode != COOLANT_OFF) && (coolantOff != undefined)) {
+  if ((coolant != COOLANT_OFF) && (currentCoolantMode != COOLANT_OFF) && (coolantOff != undefined) && !forceCoolant) {
     if (Array.isArray(coolantOff)) {
       for (var i in coolantOff) {
         multipleCoolantBlocks.push(coolantOff[i]);
@@ -2923,6 +2925,7 @@ function getCoolantCodes(coolant) {
       multipleCoolantBlocks.push(coolantOff);
     }
   }
+  forceCoolant = false;
 
   var m;
   var coolantCodes = {};
@@ -2986,6 +2989,12 @@ function onCommand(command) {
   case COMMAND_STOP:
     writeBlock(mFormat.format(0));
     forceSpindleSpeed = true;
+    forceCoolant = true;
+    return;
+  case COMMAND_OPTIONAL_STOP:
+    writeBlock(mFormat.format(1));
+    forceSpindleSpeed = true;
+    forceCoolant = true;
     return;
   case COMMAND_START_SPINDLE:
     onCommand(tool.clockwise ? COMMAND_SPINDLE_CLOCKWISE : COMMAND_SPINDLE_COUNTERCLOCKWISE);
