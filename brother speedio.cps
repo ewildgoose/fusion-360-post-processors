@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 43648 445bd88afb8b02f8c67d0ad044040bbaf2db7129 $
-  $Date: 2022-02-17 08:22:48 $
+  $Revision: 43667 2be33914e72e06bef6142892f9a4d7084de57510 $
+  $Date: 2022-02-28 17:55:49 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -160,7 +160,7 @@ properties = {
   },
   usePitchForTapping: {
     title      : "Use Pitch/TPI for tapping",
-    description: "Specifies if high accuracy mode should be used.",
+    description: "Enables the use of pitch and threads per inch instead of feed for tapping cycles.",
     type       : "boolean",
     value      : true,
     scope      : "post"
