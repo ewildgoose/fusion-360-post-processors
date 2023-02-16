@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 43340 87e091300b673cf720a5d07cfae42c42846642d9 $
-  $Date: 2021-06-28 09:19:41 $
+  $Revision: 43420 2f72edf5dc6aefedae272175ac5b7e18be5980dd $
+  $Date: 2021-09-10 11:14:48 $
   
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -738,19 +738,26 @@ function cancelWorkPlane(force) {
 }
 
 function positionABC(abc, force) {
+  if (typeof unwindABC == "function") {
+    unwindABC(abc, false);
+  }
   if (force) {
     forceABC();
-    gMotionModal.reset();
   }
   var a = aOutput.format(abc.x);
   var b = bOutput.format(abc.y);
   var c = cOutput.format(abc.z);
   if (a || b || c) {
     if (!retracted) {
-      writeRetract(Z);
+      if (typeof moveToSafeRetractPosition == "function") {
+        moveToSafeRetractPosition();
+      } else {
+        writeRetract(Z);
+      }
     }
+    gMotionModal.reset();
     writeBlock(gMotionModal.format(0), a, b, c);
-    currentMachineABC = abc;
+    currentMachineABC = new Vector(abc);
     setCurrentABC(abc); // required for machine simulation
   }
 }
