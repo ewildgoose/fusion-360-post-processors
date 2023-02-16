@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 43145 7467f1b6d8e4ba9c186427689c09211388a95370 $
-  $Date: 2021-02-17 14:47:25 $
+  $Revision: 43151 08c79bb5b30997ccb5fb33ab8e7c8c26981be334 $
+  $Date: 2021-02-19 00:25:13 $
   
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -15,7 +15,7 @@ vendor = "Brother";
 vendorUrl = "http://www.brother.com";
 legal = "Copyright (C) 2012-2021 by Autodesk, Inc.";
 certificationLevel = 2;
-minimumRevision = 45600;
+minimumRevision = 45702;
 
 longDescription = "Generic milling post for Brother Speedio S300X1, S500X1 and S700X1 machines.";
 
@@ -37,74 +37,175 @@ highFeedrate = (unit == IN) ? 500 : 5000;
 
 // user-defined properties
 properties = {
-  writeMachine: true, // write machine
-  writeTools: true, // writes the tools
-  preloadTool: true, // preloads next tool on tool change if any
-  showSequenceNumbers: true, // show sequence numbers
-  sequenceNumberStart: 10, // first sequence number
-  sequenceNumberIncrement: 5, // increment for sequence numbers
-  optionalStop: true, // optional stop
-  /*o8: false, */// specifies 8-digit program number
-  separateWordsWithSpace: true, // specifies that the words should be separated with a white space
-  useRadius: false, // specifies that arcs should be output using the radius (R word) instead of the I, J, and K words.
-  useParametricFeed: false, // specifies that feed should be output using Q values
-  showNotes: false, // specifies that operation notes should be output.
-  useAAxis: false, // enables the A axis
-  useTrunnion: false, // enables the AC trunnion
-  probingType: "Renishaw", // sets the probing style
-  washdownCoolant: "off", // sets when/if washdown coolant should be used
-  usePitchForTapping: true, // for tapping use TPI for Inch output and Pitch for MM output
-  /*outputUnit: "same", */// can be "same", "inch", or "mm"
-  doubleTapWithdrawSpeed: false, // if enabled, the withdraw speed of the tap is doubled
-  useSmoothing: false, // high accuracy mode
-  useInverseTime: false, // use Inverse Time feed rates for multi-axis moves
-  safePositionMethod: "G53", // specifies the desired safe position option
-  singleResultsFile: true // create a single file containing the results for all posted inspection toolpath
-};
-
-// user-defined property definitions
-propertyDefinitions = {
-  writeMachine: {title:"Write machine", description:"Output the machine settings in the header of the code.", group:0, type:"boolean"},
-  writeTools: {title:"Write tool list", description:"Output a tool list in the header of the code.", group:0, type:"boolean"},
-  preloadTool: {title:"Preload tool", description:"Preloads the next tool at a tool change (if any).", group:1, type:"boolean"},
-  showSequenceNumbers: {title:"Use sequence numbers", description:"Use sequence numbers for each block of outputted code.", group:1, type:"boolean"},
-  sequenceNumberStart: {title:"Start sequence number", description:"The number at which to start the sequence numbers.", group:1, type:"integer"},
-  sequenceNumberIncrement: {title:"Sequence number increment", description:"The amount by which the sequence number is incremented by in each block.", group:1, type:"integer"},
-  optionalStop: {title:"Optional stop", description:"Outputs optional stop code during when necessary in the code.", type:"boolean"},
-  /*o8: {title:"8 Digit program number", description:"Specifies that an 8 digit program number is needed.", type:"boolean"},*/
-  separateWordsWithSpace: {title:"Separate words with space", description:"Adds spaces between words if 'yes' is selected.", type:"boolean"},
-  useRadius: {title:"Radius arcs", description:"If yes is selected, arcs are outputted using radius values rather than IJK.", type:"boolean"},
-  useParametricFeed:  {title:"Parametric feed", description:"Specifies the feed value that should be output using a Q value.", type:"boolean"},
-  showNotes: {title:"Show notes", description:"Writes operation notes as comments in the outputted code.", type:"boolean"},
-  useAAxis: {title: "Use A-axis", description: "Specifies whether to use the A axis.", type: "boolean"},
-  useTrunnion: {title: "Use AC-trunnion", description: "Enables a trunnion table with an A and C-axis.", type: "boolean"},
-  probingType: {title: "Probing type", description: "Specified what probing cycles are used on the machine.", type: "enum", values: [{title: "Renishaw", id: "Renishaw"}, {title: "Blum", id: "Blum"}]},
-  washdownCoolant: {title: "Washdown coolant", description: "Specifies whether washdown coolant should be used and where it is output.", type: "enum", values:[{title: "Off", id: "off"}, {title: "Always on", id: "always"}, {title: "End of operation", id: "operationEnd"}, {title: "Program end", id:"programEnd"}]},
-  usePitchForTapping: {title:"Use Pitch/TPI for tapping", description:"Specifies if high accuracy mode should be used.", type:"boolean"},
-  /*outputUnit: {
-    title: "Output units",
-    description: "Select output units, can be same as input or forced to be Inch or MM.",
+  writeMachine: {
+    title: "Write machine",
+    description: "Output the machine settings in the header of the code.",
+    group: 0,
+    type: "boolean",
+    value: true,
+    scope: "post"
+  },
+  writeTools: {
+    title: "Write tool list",
+    description: "Output a tool list in the header of the code.",
+    group: 0,
+    type: "boolean",
+    value: true,
+    scope: "post"
+  },
+  preloadTool: {
+    title: "Preload tool",
+    description: "Preloads the next tool at a tool change (if any).",
+    group: 1,
+    type: "boolean",
+    value: true,
+    scope: "post"
+  },
+  showSequenceNumbers: {
+    title: "Use sequence numbers",
+    description: "Use sequence numbers for each block of outputted code.",
+    group: 1,
+    type: "boolean",
+    value: true,
+    scope: "post"
+  },
+  sequenceNumberStart: {
+    title: "Start sequence number",
+    description: "The number at which to start the sequence numbers.",
+    group: 1,
+    type: "integer",
+    value: 10,
+    scope: "post"
+  },
+  sequenceNumberIncrement: {
+    title: "Sequence number increment",
+    description: "The amount by which the sequence number is incremented by in each block.",
+    group: 1,
+    type: "integer",
+    value: 5,
+    scope: "post"
+  },
+  optionalStop: {
+    title: "Optional stop",
+    description: "Outputs optional stop code during when necessary in the code.",
+    type: "boolean",
+    value: true,
+    scope: "post"
+  },
+  separateWordsWithSpace: {
+    title: "Separate words with space",
+    description: "Adds spaces between words if 'yes' is selected.",
+    type: "boolean",
+    value: true,
+    scope: "post"
+  },
+  useRadius: {
+    title: "Radius arcs",
+    description: "If yes is selected, arcs are outputted using radius values rather than IJK.",
+    type: "boolean",
+    value: false,
+    scope: "post"
+  },
+  useParametricFeed: {
+    title: "Parametric feed",
+    description: "Specifies the feed value that should be output using a Q value.",
+    type: "boolean",
+    value: false,
+    scope: "post"
+  },
+  showNotes: {
+    title: "Show notes",
+    description: "Writes operation notes as comments in the outputted code.",
+    type: "boolean",
+    value: false,
+    scope: "post"
+  },
+  useAAxis: {
+    title: "Use A-axis",
+    description: "Specifies whether to use the A axis.",
+    type: "boolean",
+    value: false,
+    scope: "post"
+  },
+  useTrunnion: {
+    title: "Use AC-trunnion",
+    description: "Enables a trunnion table with an A and C-axis.",
+    type: "boolean",
+    value: false,
+    scope: "post"
+  },
+  probingType: {
+    title: "Probing type",
+    description: "Specified what probing cycles are used on the machine.",
     type: "enum",
-    values:[
-      {title:"Same as input", id:"same"},
-      {title:"Inch", id:"inch"},
-      {title:"MM", id:"mm"}
-    ]
-  },*/
-  doubleTapWithdrawSpeed: {title:"Double tap withdraw speed", description:"If enabled, a L value containing double the spindle speed (up to 6000) will be output in the G77 tapping cycle.", type: "boolean"},
-  useSmoothing: {title:"Use high accuraccy mode", description:"Selects whether the feedrate, or pitch in MM or TPI for Inch is output for tapping cycles.", type:"boolean"},
-  useInverseTime: {title:"Use inverse time feedrates", description:"'Yes' enables inverse time feedrates, 'No' outputs DPM feedrates.", type:"boolean"},
+    values: [
+      {title: "Renishaw", id: "Renishaw"},
+      {title: "Blum", id: "Blum"}
+    ],
+    value: "Renishaw",
+    scope: "post"
+  },
+  washdownCoolant: {
+    title: "Washdown coolant",
+    description: "Specifies whether washdown coolant should be used and where it is output.",
+    type: "enum",
+    values: [
+      {title: "Off", id: "off"},
+      {title: "Always on", id: "always"},
+      {title: "End of operation", id: "operationEnd"},
+      {title: "Program end", id: "programEnd"}
+    ],
+    value: "off",
+    scope: "post"
+  },
+  usePitchForTapping: {
+    title: "Use Pitch/TPI for tapping",
+    description: "Specifies if high accuracy mode should be used.",
+    type: "boolean",
+    value: true,
+    scope: "post"
+  },
+  doubleTapWithdrawSpeed: {
+    title: "Double tap withdraw speed",
+    description: "If enabled, a L value containing double the spindle speed (up to 6000) will be output in the G77 tapping cycle.",
+    type: "boolean",
+    value: false,
+    scope: "post"
+  },
+  useSmoothing: {
+    title: "Use high accuraccy mode",
+    description: "Selects whether the feedrate, or pitch in MM or TPI for Inch is output for tapping cycles.",
+    type: "boolean",
+    value: false,
+    scope: "post"
+  },
+  useInverseTime: {
+    title: "Use inverse time feedrates",
+    description: "'Yes' enables inverse time feedrates, 'No' outputs DPM feedrates.",
+    type: "boolean",
+    value: false,
+    scope: "post"
+  },
   safePositionMethod: {
     title: "Safe Retracts",
     description: "Select your desired retract option. 'Clearance Height' retracts to the operation clearance height.",
     type: "enum",
-    values:[
+    values: [
       // {title:"G28", id: "G28"},
-      {title:"G53", id: "G53"},
-      {title:"Clearance Height", id: "clearanceHeight"}
-    ]
+      {title: "G53", id: "G53"},
+      {title: "Clearance Height", id: "clearanceHeight"}
+    ],
+    value: "G53",
+    scope: "post"
   },
-  singleResultsFile: {title: "Create single results file", description: "Set to false if you want to store the measurement results for each probe / inspection toolpath in a separate file", group: 0, type: "boolean"}
+  singleResultsFile: {
+    title: "Create single results file",
+    description: "Set to false if you want to store the measurement results for each probe / inspection toolpath in a separate file",
+    group: 0,
+    type: "boolean",
+    value: true,
+    scope: "post"
+  }
 };
 
 var singleLineCoolant = false; // specifies to output multiple coolant codes in one line rather than in separate lines
@@ -206,7 +307,7 @@ function writeBlock() {
   if (!text) {
     return;
   }
-  if (properties.showSequenceNumbers) {
+  if (getProperty("showSequenceNumbers")) {
     if (optionalSection) {
       if (text) {
         writeWords("/", "N" + sequenceNumber, text);
@@ -214,7 +315,7 @@ function writeBlock() {
     } else {
       writeWords2("N" + sequenceNumber, arguments);
     }
-    sequenceNumber += properties.sequenceNumberIncrement;
+    sequenceNumber += getProperty("sequenceNumberIncrement");
   } else {
     writeWords(arguments);
   }
@@ -224,11 +325,11 @@ function writeBlock() {
   Writes the specified optional block.
 */
 function writeOptionalBlock() {
-  if (properties.showSequenceNumbers) {
+  if (getProperty("showSequenceNumbers")) {
     var words = formatWords(arguments);
     if (words) {
       writeWords("/", "N" + sequenceNumber, words);
-      sequenceNumber += properties.sequenceNumberIncrement;
+      sequenceNumber += getProperty("sequenceNumberIncrement");
     }
   } else {
     writeWords("/", arguments);
@@ -247,19 +348,19 @@ function writeComment(text) {
 }
 
 function onOpen() {
-  if (properties.useRadius) {
+  if (getProperty("useRadius")) {
     maximumCircularSweep = toRad(90); // avoid potential center calculation errors for CNC
   }
   gRotationModal.format(69); // Default to G69 Rotation Off
 
-  if (properties.useTrunnion) {
+  if (getProperty("useTrunnion")) {
     var aAxis = createAxis({coordinate:0, table:true, axis:[1, 0, 0], range:[-30, 120], preference:1});
     var cAxis = createAxis({coordinate:2, table:true, axis:[0, 0, 1], cyclic:true});
     machineConfiguration = new MachineConfiguration(aAxis, cAxis);
 
     setMachineConfiguration(machineConfiguration);
     optimizeMachineAngles2(1); // TCP mode disabled
-  } else if (properties.useAAxis) { // note: setup your machine here
+  } else if (getProperty("useAAxis")) { // note: setup your machine here
     var aAxis = createAxis({coordinate:0, table:true, axis:[1, 0, 0], range:[-360, 360], preference:1});
     machineConfiguration = new MachineConfiguration(aAxis);
 
@@ -277,11 +378,11 @@ function onOpen() {
     cOutput.disable();
   }
   
-  if (!properties.separateWordsWithSpace) {
+  if (!getProperty("separateWordsWithSpace")) {
     setWordSeparator("");
   }
 
-  sequenceNumber = properties.sequenceNumberStart;
+  sequenceNumber = getProperty("sequenceNumberStart");
 
   if (programName) {
     if (programComment) {
@@ -299,7 +400,7 @@ function onOpen() {
   var model = machineConfiguration.getModel();
   var description = machineConfiguration.getDescription();
 
-  if (properties.writeMachine && (vendor || model || description)) {
+  if (getProperty("writeMachine") && (vendor || model || description)) {
     writeComment(localize("Machine"));
     if (vendor) {
       writeComment("  " + localize("vendor") + ": " + vendor);
@@ -313,7 +414,7 @@ function onOpen() {
   }
 
   // dump tool information
-  if (properties.writeTools) {
+  if (getProperty("writeTools")) {
     var zRanges = {};
     if (is3D()) {
       var numberOfSections = getNumberOfSections();
@@ -651,7 +752,7 @@ function setWorkPlane(abc) {
   onCommand(COMMAND_UNLOCK_MULTI_AXIS);
 
   if (!retracted) {
-    if (!properties.useAAxis && !properties.useTrunnion) {
+    if (!getProperty("useAAxis") && !getProperty("useTrunnion")) {
       writeRetract(Z);
     }
   }
@@ -761,7 +862,7 @@ function getWorkPlaneMachineABC(workPlane, _setWorkPlane, rotate) {
 }
 
 function printProbeResults() {
-  return ((currentSection.getParameter("printResults", 0) == 1) && (properties.probingType == "Renishaw"));
+  return ((currentSection.getParameter("printResults", 0) == 1) && (getProperty("probingType") == "Renishaw"));
 }
 
 var probeOutputWorkOffset = 1;
@@ -790,7 +891,7 @@ function onSection() {
     (!machineConfiguration.isMultiAxisConfiguration() && currentSection.isMultiAxis()) ||
     (!getPreviousSection().isMultiAxis() && currentSection.isMultiAxis() ||
       getPreviousSection().isMultiAxis() && !currentSection.isMultiAxis()); // force newWorkPlane between indexing and simultaneous operations
-  var forceSmoothing =  properties.useSmoothing &&
+  var forceSmoothing =  getProperty("useSmoothing") &&
     (hasParameter("operation-strategy") && (getParameter("operation-strategy") == "drill") ||
     !isFirstSection() && getPreviousSection().hasParameter("operation-strategy") && (getPreviousSection().getParameter("operation-strategy") == "drill")); // force smoothing in case !insertToolCall
   if (insertToolCall || newWorkOffset || newWorkPlane || forceSmoothing) {
@@ -825,7 +926,7 @@ function onSection() {
     }
   }
   
-  if (properties.showNotes && hasParameter("notes")) {
+  if (getProperty("showNotes") && hasParameter("notes")) {
     var notes = getParameter("notes");
     if (notes) {
       var lines = String(notes).split("\n");
@@ -922,7 +1023,7 @@ function onSection() {
     
     setCoolant(COOLANT_OFF);
 
-    if (!isFirstSection() && properties.optionalStop) {
+    if (!isFirstSection() && getProperty("optionalStop")) {
       onCommand(COMMAND_OPTIONAL_STOP);
     }
 
@@ -936,8 +1037,8 @@ function onSection() {
       conditional(!useMultiAxisFeatures, yOutput.format(start.y)),
       gFormat.format(43),
       conditional(!useMultiAxisFeatures, zOutput.format(start.z)),
-      (((properties.useAAxis || properties.useTrunnion) && abc) ? aOutput.format(abc.x) : undefined),
-      ((properties.useTrunnion && abc) ? cOutput.format(abc.z) : undefined),
+      (((getProperty("useAAxis") || getProperty("useTrunnion")) && abc) ? aOutput.format(abc.x) : undefined),
+      ((getProperty("useTrunnion") && abc) ? cOutput.format(abc.z) : undefined),
       conditional(!useMultiAxisFeatures, hFormat.format(tool.lengthOffset)),
       conditional(tool.type != TOOL_PROBE, dFormat.format(tool.diameterOffset)),
       conditional(tool.type != TOOL_PROBE, sOutput.format(spindleSpeed)),
@@ -964,7 +1065,7 @@ function onSection() {
       }
     }
 
-    if (properties.preloadTool) {
+    if (getProperty("preloadTool")) {
       var nextTool = getNextTool(tool.number);
       if (nextTool) {
         writeBlock("T" + toolFormat.format(nextTool.number));
@@ -990,7 +1091,7 @@ function onSection() {
     forceXYZ();
   }
 
-  if (!currentSection.isMultiAxis() && (properties.useAAxis || properties.useTrunnion)) {
+  if (!currentSection.isMultiAxis() && (getProperty("useAAxis") || getProperty("useTrunnion"))) {
     if (!useMultiAxisFeatures) {
       setWorkPlane(abc);
     } else {
@@ -1019,7 +1120,7 @@ function onSection() {
     }
   }
 
-  if (properties.useSmoothing) {
+  if (getProperty("useSmoothing")) {
     if (hasParameter("operation-strategy") && (getParameter("operation-strategy") != "drill")) {
       if (setSmoothing(true)) {
         // retracted = true; // force G43
@@ -1041,7 +1142,7 @@ function onSection() {
     }
   }
 
-  if (tool.type != TOOL_PROBE && isFirstSection() && (properties.washdownCoolant == "always")) {
+  if (tool.type != TOOL_PROBE && isFirstSection() && (getProperty("washdownCoolant") == "always")) {
     writeBlock(mFormat.format(washdownCoolant.on));
   }
 
@@ -1080,7 +1181,7 @@ function onSection() {
     );
   }
 
-  if (properties.useParametricFeed &&
+  if (getProperty("useParametricFeed") &&
     hasParameter("operation-strategy") &&
     (getParameter("operation-strategy") != "drill") && // legacy
     !(currentSection.hasAnyCycle && currentSection.hasAnyCycle())) {
@@ -1099,7 +1200,7 @@ function onSection() {
   if (isProbeOperation()) {
     validate(probeVariables.probeAngleMethod != "G68", "You cannot probe while G68 Rotation is in effect.");
     validate(probeVariables.probeAngleMethod != "G54.4", "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
-    if (properties.probingType == "Renishaw") {
+    if (getProperty("probingType") == "Renishaw") {
       writeBlock(gFormat.format(65), "P" + 8832); // spin the probe on
       inspectionCreateResultsFileHeader();
     }
@@ -1136,7 +1237,7 @@ function approach(value) {
 }
 
 function setProbeAngleMethod() {
-  probeVariables.probeAngleMethod = (machineConfiguration.getNumberOfAxes() < 5 || is3D()) ? (properties.useG54x4 ? "G54.4" : "G68") : "UNSUPPORTED";
+  probeVariables.probeAngleMethod = (machineConfiguration.getNumberOfAxes() < 5 || is3D()) ? (getProperty("useG54x4") ? "G54.4" : "G68") : "UNSUPPORTED";
   var axes = [machineConfiguration.getAxisU(), machineConfiguration.getAxisV(), machineConfiguration.getAxisW()];
   for (var i = 0; i < axes.length; ++i) {
     if (axes[i].isEnabled() && isSameDirection((axes[i].getAxis()).getAbsolute(), new Vector(0, 0, 1)) && axes[i].isTable()) {
@@ -1200,7 +1301,7 @@ function protectedProbeMove(_cycle, x, y, z) {
   var _x = xOutput.format(x);
   var _y = yOutput.format(y);
   var _z = zOutput.format(z);
-  var _code = properties.probingType == "Renishaw" ? 8810 : 8703;
+  var _code = getProperty("probingType") == "Renishaw" ? 8810 : 8703;
   if (_z && z >= getCurrentPosition().z) {
     writeBlock(gFormat.format(65), "P" + _code, _z, getFeed(cycle.feedrate)); // protected positioning move
   }
@@ -1322,14 +1423,14 @@ function onCyclePoint(x, y, z) {
       if (!F) {
         F = tool.getTappingFeedrate();
       }
-      if (properties.usePitchForTapping) {
+      if (getProperty("usePitchForTapping")) {
         writeBlock(
           gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 77),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           conditional((P != 0), "P" + secFormat.format(P)),
           conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
           conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitch)),
-          conditional(properties.doubleTapWithdrawSpeed, "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
+          conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
         );
       } else {
         writeBlock(
@@ -1344,14 +1445,14 @@ function onCyclePoint(x, y, z) {
       if (!F) {
         F = tool.getTappingFeedrate();
       }
-      if (properties.usePitchForTapping) {
+      if (getProperty("usePitchForTapping")) {
         writeBlock(
           gCycleModal.format(74),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           conditional((P != 0), "P" + secFormat.format(P)),
           conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
           conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitch)),
-          conditional(properties.doubleTapWithdrawSpeed, "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
+          conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
         );
       } else {
         writeBlock(
@@ -1366,14 +1467,14 @@ function onCyclePoint(x, y, z) {
       if (!F) {
         F = tool.getTappingFeedrate();
       }
-      if (properties.usePitchForTapping) {
+      if (getProperty("usePitchForTapping")) {
         writeBlock(
           gCycleModal.format(77),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           conditional((P != 0), "P" + secFormat.format(P)),
           conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
           conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitch)),
-          conditional(properties.doubleTapWithdrawSpeed, "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
+          conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
         );
       } else {
         writeBlock(
@@ -1394,7 +1495,7 @@ function onCyclePoint(x, y, z) {
         if (!F) {
           F = tool.getTappingFeedrate();
         }
-        if (properties.usePitchForTapping) {
+        if (getProperty("usePitchForTapping")) {
           writeBlock(
             gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 77),
             getCommonCycle(x, y, cycle.bottom, cycle.retract),
@@ -1402,7 +1503,7 @@ function onCyclePoint(x, y, z) {
             "Q" + xyzFormat.format(cycle.incrementalDepth),
             conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
             conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitch)),
-            conditional(properties.doubleTapWithdrawSpeed, "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
+            conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
           );
         } else {
           writeBlock(
@@ -1490,7 +1591,7 @@ function onCyclePoint(x, y, z) {
     case "probing-x":
       protectedProbeMove(cycle, x, y, z - cycle.depth);
       writeBlock(
-        gFormat.format(65), "P" + (properties.probingType == "Renishaw" ? 8811 : 8700),
+        gFormat.format(65), "P" + (getProperty("probingType") == "Renishaw" ? 8811 : 8700),
         "X" + xyzFormat.format(x + approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2)),
         "Q" + xyzFormat.format(cycle.probeOvertravel),
         getProbingArguments(cycle, true)
@@ -1499,7 +1600,7 @@ function onCyclePoint(x, y, z) {
     case "probing-y":
       protectedProbeMove(cycle, x, y, z - cycle.depth);
       writeBlock(
-        gFormat.format(65), "P" + (properties.probingType == "Renishaw" ? 8811 : 8700),
+        gFormat.format(65), "P" + (getProperty("probingType") == "Renishaw" ? 8811 : 8700),
         "Y" + xyzFormat.format(y + approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2)),
         "Q" + xyzFormat.format(cycle.probeOvertravel),
         getProbingArguments(cycle, true)
@@ -1508,7 +1609,7 @@ function onCyclePoint(x, y, z) {
     case "probing-z":
       protectedProbeMove(cycle, x, y, Math.min(z - cycle.depth + cycle.probeClearance, cycle.retract));
       writeBlock(
-        gFormat.format(65), "P" + (properties.probingType == "Renishaw" ? 8811 : 8700),
+        gFormat.format(65), "P" + (getProperty("probingType") == "Renishaw" ? 8811 : 8700),
         "Z" + xyzFormat.format(z - cycle.depth),
         "Q" + xyzFormat.format(cycle.probeOvertravel),
         getProbingArguments(cycle, true)
@@ -1516,7 +1617,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-x-wall":
       protectedProbeMove(cycle, x, y, z);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8812,
           "X" + xyzFormat.format(cycle.width1),
@@ -1539,7 +1640,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-y-wall":
       protectedProbeMove(cycle, x, y, z);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8812,
           "Y" + xyzFormat.format(cycle.width1),
@@ -1562,7 +1663,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-x-channel":
       protectedProbeMove(cycle, x, y, z - cycle.depth);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8812,
           "X" + xyzFormat.format(cycle.width1),
@@ -1582,7 +1683,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-x-channel-with-island":
       protectedProbeMove(cycle, x, y, z);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8812,
           "X" + xyzFormat.format(cycle.width1),
@@ -1605,7 +1706,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-y-channel":
       protectedProbeMove(cycle, x, y, z - cycle.depth);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8812,
           "Y" + xyzFormat.format(cycle.width1),
@@ -1625,7 +1726,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-y-channel-with-island":
       protectedProbeMove(cycle, x, y, z);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8812,
           "Y" + xyzFormat.format(cycle.width1),
@@ -1648,7 +1749,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-xy-circular-boss":
       protectedProbeMove(cycle, x, y, z);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8814,
           "D" + xyzFormat.format(cycle.width1),
@@ -1670,7 +1771,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-xy-circular-partial-boss":
       protectedProbeMove(cycle, x, y, z);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8823,
           "A" + xyzFormat.format(cycle.partialCircleAngleA),
@@ -1688,7 +1789,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-xy-circular-hole":
       protectedProbeMove(cycle, x, y, z - cycle.depth);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8814,
           "D" + xyzFormat.format(cycle.width1),
@@ -1707,7 +1808,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-xy-circular-partial-hole":
       protectedProbeMove(cycle, x, y, z - cycle.depth);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8823,
           "A" + xyzFormat.format(cycle.partialCircleAngleA),
@@ -1723,7 +1824,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-xy-circular-hole-with-island":
       protectedProbeMove(cycle, x, y, z);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8814,
           "Z" + xyzFormat.format(z - cycle.depth),
@@ -1745,7 +1846,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-xy-circular-partial-hole-with-island":
       protectedProbeMove(cycle, x, y, z);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8823,
           "Z" + xyzFormat.format(z - cycle.depth),
@@ -1763,7 +1864,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-xy-rectangular-hole":
       protectedProbeMove(cycle, x, y, z - cycle.depth);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8812,
           "X" + xyzFormat.format(cycle.width1),
@@ -1784,7 +1885,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-xy-rectangular-boss":
       protectedProbeMove(cycle, x, y, z);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8812,
           "Z" + xyzFormat.format(z - cycle.depth),
@@ -1826,7 +1927,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-xy-rectangular-hole-with-island":
       protectedProbeMove(cycle, x, y, z);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8812,
           "Z" + xyzFormat.format(z - cycle.depth),
@@ -1848,7 +1949,7 @@ function onCyclePoint(x, y, z) {
       }
       break;
     case "probing-xy-inner-corner":
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         var cornerX = x + approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2);
         var cornerY = y + approach(cycle.approach2) * (cycle.probeClearance + tool.diameter / 2);
         var cornerI = 0;
@@ -1891,7 +1992,7 @@ function onCyclePoint(x, y, z) {
         }
       }
       protectedProbeMove(cycle, x, y, z - cycle.depth);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8816, xOutput.format(cornerX), yOutput.format(cornerY),
           conditional(cornerI != 0, "I" + xyzFormat.format(cornerI)),
@@ -1911,7 +2012,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-x-plane-angle":
       protectedProbeMove(cycle, x, y, z - cycle.depth);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8843,
           "X" + xyzFormat.format(x + approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2)),
@@ -1930,7 +2031,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-y-plane-angle":
       protectedProbeMove(cycle, x, y, z - cycle.depth);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8843,
           "Y" + xyzFormat.format(y + approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2)),
@@ -1949,7 +2050,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-xy-pcd-hole":
       protectedProbeMove(cycle, x, y, z);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8819,
           "A" + xyzFormat.format(cycle.pcdStartingAngle),
@@ -1970,7 +2071,7 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-xy-pcd-boss":
       protectedProbeMove(cycle, x, y, z);
-      if (properties.probingType == "Renishaw") {
+      if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65), "P" + 8819,
           "A" + xyzFormat.format(cycle.pcdStartingAngle),
@@ -2011,7 +2112,7 @@ function getProbingArguments(cycle, updateWCS) {
       currentWorkOffset = undefined;
     }
   }
-  if (properties.probingType == "Renishaw") {
+  if (getProperty("probingType") == "Renishaw") {
     return [
       (cycle.angleAskewAction == "stop-message" ? "B" + xyzFormat.format(cycle.toleranceAngle ? cycle.toleranceAngle : 0) : undefined),
       ((cycle.updateToolWear && cycle.toolWearErrorCorrection < 100) ? "F" + xyzFormat.format(cycle.toolWearErrorCorrection ? cycle.toolWearErrorCorrection / 100 : 100) : undefined),
@@ -2037,7 +2138,7 @@ function onCycleEnd() {
   if (isProbeOperation()) {
     zOutput.reset();
     gMotionModal.reset();
-    if (properties.probingType == "Renishaw") {
+    if (getProperty("probingType") == "Renishaw") {
       writeBlock(gFormat.format(65), "P" + 8810, zOutput.format(cycle.retract)); // protected retract move
     } else {
       writeBlock(gFormat.format(65), "P" + 8703, zOutput.format(cycle.retract)); // protected retract move
@@ -2149,7 +2250,7 @@ function onLinear5D(_x, _y, _z, _a, _b, _c, feed) {
     var f = {frn:0, fmode:0};
     if (a || b || c) {
       f = getMultiaxisFeed(_x, _y, _z, _a, _b, _c, feed);
-      if (properties.useInverseTime) {
+      if (getProperty("useInverseTime")) {
         f.frn = inverseTimeOutput.format(f.frn);
       } else {
         f.frn = feedOutput.format(f.frn);
@@ -2190,7 +2291,7 @@ function onLinear5D(_x, _y, _z, _a, _b, _c, feed) {
 }
 
 // Start of multi-axis feedrate logic
-/***** You can add 'properties.useInverseTime' if desired. *****/
+/***** You can add 'getProperty("useInverseTime'") if desired. *****/
 /***** 'previousABC' can be added throughout to maintain previous rotary positions. Required for Mill/Turn machines. *****/
 /***** 'headOffset' should be defined when a head rotary axis is defined. *****/
 /***** The feedrate mode must be included in motion block output (linear, circular, etc.) for Inverse Time feedrate support. *****/
@@ -2216,7 +2317,7 @@ function getMultiaxisFeed(_x, _y, _z, _a, _b, _c, feed) {
   
   var length = getMoveLength(_x, _y, _z, _a, _b, _c);
   
-  if (properties.useInverseTime) { // inverse time
+  if (getProperty("useInverseTime")) { // inverse time
     f.frn = getInverseTime(length.tool, feed);
     f.fmode = 93;
     feedOutput.reset();
@@ -2445,7 +2546,7 @@ function getMoveLength(_x, _y, _z, _a, _b, _c) {
 // End of multi-axis feedrate logic
 
 // Start of onRewindMachine logic
-/***** Be sure to add 'safeRetractDistance' to post properties. *****/
+/***** Be sure to add 'safeRetractDistance' to post getProperty(" ")*****/
 var performRewinds = false; // enables the onRewindMachine logic
 var safeRetractFeed = (unit == IN) ? 20 : 500;
 var safePlungeFeed = (unit == IN) ? 10 : 250;
@@ -2461,7 +2562,7 @@ function moveToSafeRetractPosition(isRetracted) {
   if (!isRetracted) {
     writeRetract(Z);
   }
-  if (properties.forceHomeOnIndexing) {
+  if (getProperty("forceHomeOnIndexing")) {
     writeRetract(X, Y);
   }
 }
@@ -2491,8 +2592,8 @@ function getRetractPosition(currentPosition, currentDirection) {
       retractPos = Vector.sum(currentPosition, Vector.product(currentDirection, tool.getFluteLength()));
     }
   }
-  if ((retractPos != undefined) && properties.safeRetractDistance) {
-    retractPos = Vector.sum(retractPos, Vector.product(currentDirection, properties.safeRetractDistance));
+  if ((retractPos != undefined) && getProperty("safeRetractDistance")) {
+    retractPos = Vector.sum(retractPos, Vector.product(currentDirection, getProperty("safeRetractDistance")));
   }
   return retractPos;
 }
@@ -2623,7 +2724,7 @@ function onCircular(clockwise, cx, cy, cz, x, y, z, feed) {
   var start = getCurrentPosition();
 
   if (isFullCircle()) {
-    if (properties.useRadius || isHelical()) { // radius mode does not support full arcs
+    if (getProperty("useRadius") || isHelical()) { // radius mode does not support full arcs
       linearize(tolerance);
       return;
     }
@@ -2640,7 +2741,7 @@ function onCircular(clockwise, cx, cy, cz, x, y, z, feed) {
     default:
       linearize(tolerance);
     }
-  } else if (!properties.useRadius) {
+  } else if (!getProperty("useRadius")) {
     switch (getCircularPlane()) {
     case PLANE_XY:
       writeBlock(gFeedModeModal.format(94), gAbsIncModal.format(90), gPlaneModal.format(17), gMotionModal.format(clockwise ? 2 : 3), xOutput.format(x), yOutput.format(y), zOutput.format(z), iOutput.format(cx - start.x, 0), jOutput.format(cy - start.y, 0), getFeed(feed));
@@ -2821,7 +2922,7 @@ function onSectionEnd() {
     currentMachineABC = currentSection.getFinalToolAxisABC();
   }
 
-  if (tool.type != TOOL_PROBE && properties.washdownCoolant == "operationEnd") {
+  if (tool.type != TOOL_PROBE && getProperty("washdownCoolant") == "operationEnd") {
     writeBlock(mFormat.format(washdownCoolant.on));
     writeBlock(mFormat.format(washdownCoolant.off));
   }
@@ -2829,7 +2930,7 @@ function onSectionEnd() {
     setCoolant(COOLANT_OFF);
   }
   if (isProbeOperation()) {
-    if (properties.probingType == "Renishaw") {
+    if (getProperty("probingType") == "Renishaw") {
       writeBlock(gFormat.format(65), "P" + 8833); // spin the probe off
       if (probeVariables.probeAngleMethod != "G68") {
         setProbeAngle(); // output probe angle rotations if required
@@ -2843,7 +2944,7 @@ function onSectionEnd() {
 function writeRetract() {
   var words = []; // store all retracted axes in an array
   var retractAxes = new Array(false, false, false);
-  var method = properties.safePositionMethod;
+  var method = getProperty("safePositionMethod");
   if (method == "clearanceHeight") {
     if (!is3D()) {
       error(localize("Retract option 'Clearance Height' is not supported for multi-axis machining."));
@@ -2921,7 +3022,7 @@ function writeRetract() {
 var isDPRNTopen = false;
 function inspectionCreateResultsFileHeader() {
   if (isDPRNTopen) {
-    if (!properties.singleResultsFile) {
+    if (!getProperty("singleResultsFile")) {
       writeln("DPRNT[END]");
       writeBlock("PCLOS");
       isDPRNTopen = false;
@@ -2937,7 +3038,7 @@ function inspectionCreateResultsFileHeader() {
     writeBlock("POPEN");
     // check for existence of none alphanumeric characters but not spaces
     var resFile;
-    if (properties.singleResultsFile) {
+    if (getProperty("singleResultsFile")) {
       resFile = getParameter("job-description") + "-RESULTS";
     } else {
       resFile = getParameter("operation-comment") + "-RESULTS";
@@ -3022,8 +3123,8 @@ function onClose() {
   optionalSection = false;
 
   setCoolant(COOLANT_OFF);
-  if (tool.type != TOOL_PROBE && (properties.washdownCoolant == "always" || properties.washdownCoolant == "programEnd")) {
-    if (properties.washdownCoolant == "programEnd") {
+  if (tool.type != TOOL_PROBE && (getProperty("washdownCoolant") == "always" || getProperty("washdownCoolant") == "programEnd")) {
+    if (getProperty("washdownCoolant") == "programEnd") {
       writeBlock(mFormat.format(washdownCoolant.on));
     }
     writeBlock(mFormat.format(washdownCoolant.off));
@@ -3044,7 +3145,7 @@ function onClose() {
   }
   setWorkPlane(new Vector(0, 0, 0)); // reset working plane
 
-  if (useMultiAxisFeatures && (properties.useAAxis || properties.useTrunnion)) {
+  if (useMultiAxisFeatures && (getProperty("useAAxis") || getProperty("useTrunnion"))) {
     writeBlock(
       gAbsIncModal.format(91), gFormat.format(28),
       conditional(machineConfiguration.isMachineCoordinate(0), "A" + abcFormat.format(0)),
@@ -3055,4 +3156,8 @@ function onClose() {
   onImpliedCommand(COMMAND_END);
   onImpliedCommand(COMMAND_STOP_SPINDLE);
   writeBlock(mFormat.format(30)); // stop program, spindle stop, coolant off
+}
+
+function setProperty(property, value) {
+  properties[property].current = value;
 }
