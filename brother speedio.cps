@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 43151 08c79bb5b30997ccb5fb33ab8e7c8c26981be334 $
-  $Date: 2021-02-19 00:25:13 $
+  $Revision: 43340 87e091300b673cf720a5d07cfae42c42846642d9 $
+  $Date: 2021-06-28 09:19:41 $
   
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -737,6 +737,24 @@ function cancelWorkPlane(force) {
   forceWorkPlane();
 }
 
+function positionABC(abc, force) {
+  if (force) {
+    forceABC();
+    gMotionModal.reset();
+  }
+  var a = aOutput.format(abc.x);
+  var b = bOutput.format(abc.y);
+  var c = cOutput.format(abc.z);
+  if (a || b || c) {
+    if (!retracted) {
+      writeRetract(Z);
+    }
+    writeBlock(gMotionModal.format(0), a, b, c);
+    currentMachineABC = abc;
+    setCurrentABC(abc); // required for machine simulation
+  }
+}
+
 function setWorkPlane(abc) {
   if (!forceMultiAxisIndexing && is3D() && !machineConfiguration.isMultiAxisConfiguration()) {
     return; // ignore
@@ -763,13 +781,7 @@ function setWorkPlane(abc) {
     }
     if (machineConfiguration.isMultiAxisConfiguration() && (useABCPrepositioning || abc.isZero())) {
       var angles = abc.isNonZero() ? getWorkPlaneMachineABC(currentSection.workPlane, false, false) : abc;
-      gMotionModal.reset();
-      writeBlock(
-        gMotionModal.format(0),
-        conditional(machineConfiguration.isMachineCoordinate(0), "A" + abcFormat.format(angles.x)),
-        conditional(machineConfiguration.isMachineCoordinate(1), "B" + abcFormat.format(angles.y)),
-        conditional(machineConfiguration.isMachineCoordinate(2), "C" + abcFormat.format(angles.z))
-      );
+      positionABC(angles, true);
     }
     if (abc.isNonZero()) {
       gRotationModal.reset();
