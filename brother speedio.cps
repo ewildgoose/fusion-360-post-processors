@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 43917 137901004ca7b899eabfc93d41f02b60143d09bb $
-  $Date: 2022-08-17 18:54:31 $
+  $Revision: 43938 a0a9bf78ef40b69cf40aa14f458fffcbbeb11e58 $
+  $Date: 2022-09-02 11:26:16 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -15,7 +15,7 @@ vendor = "Brother";
 vendorUrl = "http://www.brother.com";
 legal = "Copyright (C) 2012-2022 by Autodesk, Inc.";
 certificationLevel = 2;
-minimumRevision = 45702;
+minimumRevision = 45821;
 
 longDescription = "Generic milling post for Brother Speedio S300X1, S500X1 and S700X1 machines.";
 
@@ -903,7 +903,6 @@ function positionABC(abc, force) {
     }
     gMotionModal.reset();
     writeBlock(gMotionModal.format(0), a, b, c);
-    currentMachineABC = new Vector(abc);
     setCurrentABC(abc); // required for machine simulation
   }
 }
@@ -967,49 +966,15 @@ function setWorkPlane(abc) {
   currentWorkPlaneABC = abc;
 }
 
-var closestABC = false; // choose closest machine angles
-var currentMachineABC;
-
 function getWorkPlaneMachineABC(workPlane, _setWorkPlane, rotate) {
   var W = workPlane; // map to global frame
 
-  var abc = machineConfiguration.getABC(W);
-  if (closestABC) {
-    if (currentMachineABC) {
-      abc = machineConfiguration.remapToABC(abc, currentMachineABC);
-    } else {
-      abc = machineConfiguration.getPreferredABC(abc);
-    }
-  } else {
-    abc = machineConfiguration.getPreferredABC(abc);
-  }
-
-  try {
-    abc = machineConfiguration.remapABC(abc);
-    if (_setWorkPlane) {
-      currentMachineABC = abc;
-    }
-  } catch (e) {
-    error(
-      localize("Machine angles not supported") + ":"
-      + conditional(machineConfiguration.isMachineCoordinate(0), " A" + abcFormat.format(abc.x))
-      + conditional(machineConfiguration.isMachineCoordinate(1), " B" + abcFormat.format(abc.y))
-      + conditional(machineConfiguration.isMachineCoordinate(2), " C" + abcFormat.format(abc.z))
-    );
-  }
+  var currentABC = isFirstSection() ? new Vector(0, 0, 0) : getCurrentDirection();
+  var abc = machineConfiguration.getABCByPreference(W, currentABC, ABC, PREFER_PREFERENCE, ENABLE_ALL);
 
   var direction = machineConfiguration.getDirection(abc);
   if (!isSameDirection(direction, W.forward)) {
     error(localize("Orientation not supported."));
-  }
-
-  if (!machineConfiguration.isABCSupported(abc)) {
-    error(
-      localize("Work plane is not supported") + ":"
-      + conditional(machineConfiguration.isMachineCoordinate(0), " A" + abcFormat.format(abc.x))
-      + conditional(machineConfiguration.isMachineCoordinate(1), " B" + abcFormat.format(abc.y))
-      + conditional(machineConfiguration.isMachineCoordinate(2), " C" + abcFormat.format(abc.z))
-    );
   }
 
   if (rotate) {
@@ -1022,7 +987,6 @@ function getWorkPlaneMachineABC(workPlane, _setWorkPlane, rotate) {
       setRotation(R);
     }
   }
-
   return abc;
 }
 
@@ -3065,11 +3029,6 @@ function onSectionEnd() {
     onCommand(COMMAND_BREAK_CONTROL);
   }
 
-  // the code below gets the machine angles from previous operation.  closestABC must also be set to true
-  if (currentSection.isMultiAxis() && currentSection.isOptimizedForMachine()) {
-    currentMachineABC = currentSection.getFinalToolAxisABC();
-  }
-
   if (tool.type != TOOL_PROBE && getProperty("washdownCoolant") == "operationEnd") {
     writeBlock(mFormat.format(washdownCoolant.on));
     writeBlock(mFormat.format(washdownCoolant.off));
@@ -3234,7 +3193,7 @@ function inspectionWriteCADTransform() {
 }
 
 function inspectionWriteWorkplaneTransform() {
-  var orientation = (machineConfiguration.isMultiAxisConfiguration() && currentMachineABC != undefined) ? machineConfiguration.getOrientation(currentMachineABC) : currentSection.workPlane;
+  var orientation = machineConfiguration.isMultiAxisConfiguration() ? machineConfiguration.getOrientation(getCurrentDirection()) : currentSection.workPlane;
   var abc = orientation.getEuler2(EULER_XYZ_S);
   writeln("DPRNT[G330" +
     "*N" + getPointNumber() +
