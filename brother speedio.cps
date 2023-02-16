@@ -1,11 +1,11 @@
 /**
-  Copyright (C) 2012-2022 by Autodesk, Inc.
+  Copyright (C) 2012-2023 by Autodesk, Inc.
   All rights reserved.
 
   Brother Speedio post processor configuration.
 
-  $Revision: 43993 6f8b8c2a3815d4748c252b49ef5a1a21a936e1ec $
-  $Date: 2022-10-18 18:32:19 $
+  $Revision: 44047 d8e7e1053b5458b74c833de7422ef2e0b3b97789 $
+  $Date: 2023-02-03 21:21:29 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -13,7 +13,7 @@
 description = "Brother Speedio";
 vendor = "Brother";
 vendorUrl = "http://www.brother.com";
-legal = "Copyright (C) 2012-2022 by Autodesk, Inc.";
+legal = "Copyright (C) 2012-2023 by Autodesk, Inc.";
 certificationLevel = 2;
 minimumRevision = 45821;
 
@@ -365,7 +365,11 @@ function writeBlock() {
     }
     sequenceNumber += getProperty("sequenceNumberIncrement");
   } else {
-    writeWords(arguments);
+    if (optionalSection) {
+      writeWords("/", arguments);
+    } else {
+      writeWords(arguments);
+    }
   }
 }
 
@@ -581,6 +585,27 @@ function forceAny() {
   forceXYZ();
   forceABC();
   forceFeed();
+}
+
+function forceModals() {
+  if (arguments.length == 0) { // reset all modal variables listed below
+    if (typeof gMotionModal != "undefined") {
+      gMotionModal.reset();
+    }
+    if (typeof gPlaneModal != "undefined") {
+      gPlaneModal.reset();
+    }
+    if (typeof gAbsIncModal != "undefined") {
+      gAbsIncModal.reset();
+    }
+    if (typeof gFeedModeModal != "undefined") {
+      gFeedModeModal.reset();
+    }
+  } else {
+    for (var i in arguments) {
+      arguments[i].reset(); // only reset the modal variable passed to this function
+    }
+  }
 }
 
 // Start of smoothing logic
@@ -995,17 +1020,17 @@ function printProbeResults() {
 }
 
 function onSection() {
-  var forceToolAndRetract = optionalSection && !currentSection.isOptional();
+  var forceSectionRestart = optionalSection && !currentSection.isOptional();
   optionalSection = currentSection.isOptional();
 
-  var insertToolCall = forceToolAndRetract || isFirstSection() ||
+  var insertToolCall = forceSectionRestart || isFirstSection() ||
     currentSection.getForceToolChange && currentSection.getForceToolChange() ||
     (tool.number != getPreviousSection().getTool().number);
 
   retracted = false;
-  var newWorkOffset = isFirstSection() ||
+  var newWorkOffset = isFirstSection() || forceSectionRestart ||
     (getPreviousSection().workOffset != currentSection.workOffset); // work offset changes
-  var newWorkPlane = isFirstSection() ||
+  var newWorkPlane = isFirstSection() || forceSectionRestart ||
     !isSameDirection(getPreviousSection().getGlobalFinalToolAxis(), currentSection.getGlobalInitialToolAxis()) ||
     (currentSection.isOptimizedForMachine() && getPreviousSection().isOptimizedForMachine() &&
       Vector.diff(getPreviousSection().getFinalToolAxisABC(), currentSection.getInitialToolAxisABC()).length > 1e-4) ||
@@ -1118,6 +1143,7 @@ function onSection() {
 
   if (insertToolCall) {
     forceWorkPlane();
+    forceModals();
 
     setCoolant(COOLANT_OFF);
 
@@ -1243,7 +1269,8 @@ function onSection() {
       return;
     }
 
-    writeBlock(gPlaneModal.format(17));
+    // Output modal commands here
+    writeBlock(gPlaneModal.format(17), gAbsIncModal.format(90), gFeedModeModal.format(94));
 
     if (!machineConfiguration.isHeadConfiguration()) {
       writeBlock(
