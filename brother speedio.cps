@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 43938 a0a9bf78ef40b69cf40aa14f458fffcbbeb11e58 $
-  $Date: 2022-09-02 11:26:16 $
+  $Revision: 43993 6f8b8c2a3815d4748c252b49ef5a1a21a936e1ec $
+  $Date: 2022-10-18 18:32:19 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -174,15 +174,15 @@ properties = {
   },
   usePitchForTapping: {
     title      : "Use Pitch/TPI for tapping",
-    description: "Enables the use of pitch and threads per inch instead of feed for tapping cycles.",
+    description: "Enables the use of pitch and threads per inch instead of feed for tapping cycles. Using G77/78 instead of G84/74.",
     group      : "preferences",
     type       : "boolean",
     value      : true,
     scope      : "post"
   },
   doubleTapWithdrawSpeed: {
-    title      : "Double tap withdraw speed",
-    description: "If enabled, a L value containing double the spindle speed (up to 6000) will be output in the G77 tapping cycle.",
+    title      : "Double the tap withdraw speed",
+    description: "If enabled, an L value containing double the spindle speed (up to 6000) will be output in the G77 tapping cycle.",
     group      : "preferences",
     type       : "boolean",
     value      : false,
@@ -1417,7 +1417,6 @@ function onCyclePoint(x, y, z) {
     expandCyclePoint(x, y, z);
     return;
   }
-
   if (isProbeOperation()) {
     if (!useMultiAxisFeatures && !isSameDirection(currentSection.workPlane.forward, new Vector(0, 0, 1))) {
       if (!allowIndexingWCSProbing && currentSection.strategy == "probe") {
@@ -1446,19 +1445,7 @@ function onCyclePoint(x, y, z) {
     var P = !cycle.dwell ? 0 : clamp(1, cycle.dwell, 99999999); // in seconds
 
     // tapping variables
-    var tapUnit = unit;
-    if (hasParameter("operation:tool_unit")) {
-      if (getParameter("operation:tool_unit") == "inches") {
-        tapUnit = IN;
-      } else {
-        tapUnit = MM;
-      }
-    }
     var threadPitch = tool.threadPitch;
-    if (unit != tapUnit) {
-      threadPitch /= (tapUnit == IN) ? 25.4 : (1.0 / 25.4);
-    }
-
     var threadsPerInch = 1.0 / threadPitch;
 
     switch (cycleType) {
@@ -1516,16 +1503,15 @@ function onCyclePoint(x, y, z) {
       }
       if (getProperty("usePitchForTapping")) {
         writeBlock(
-          gRetractModal.format(98), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 77),
+          gRetractModal.format(98), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 78 : 77),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
-          conditional((P != 0), "P" + secFormat.format(P)),
-          conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
-          conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitch)),
+          conditional((unit == IN), "J" + xyzFormat.format(threadsPerInch)),
+          conditional((unit == MM), "I" + xyzFormat.format(threadPitch)),
           conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
         );
       } else {
         writeBlock(
-          gRetractModal.format(98), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 77),
+          gRetractModal.format(98), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 84),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           "P" + secFormat.format(P),
           cyclefeedOutput.format(F)
@@ -1538,11 +1524,10 @@ function onCyclePoint(x, y, z) {
       }
       if (getProperty("usePitchForTapping")) {
         writeBlock(
-          gRetractModal.format(98), gCycleModal.format(74),
+          gRetractModal.format(98), gCycleModal.format(78),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
-          conditional((P != 0), "P" + secFormat.format(P)),
-          conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
-          conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitch)),
+          conditional((unit == IN), "J" + xyzFormat.format(threadsPerInch)),
+          conditional((unit == MM), "I" + xyzFormat.format(threadPitch)),
           conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
         );
       } else {
@@ -1562,14 +1547,13 @@ function onCyclePoint(x, y, z) {
         writeBlock(
           gRetractModal.format(98), gCycleModal.format(77),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
-          conditional((P != 0), "P" + secFormat.format(P)),
-          conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
-          conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitch)),
+          conditional((unit == IN), "J" + xyzFormat.format(threadsPerInch)),
+          conditional((unit == MM), "I" + xyzFormat.format(threadPitch)),
           conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
         );
       } else {
         writeBlock(
-          gRetractModal.format(98), gCycleModal.format(77),
+          gRetractModal.format(98), gCycleModal.format(84),
           getCommonCycle(x, y, z, cycle.retract),
           "P" + secFormat.format(P),
           cyclefeedOutput.format(F)
@@ -1588,22 +1572,15 @@ function onCyclePoint(x, y, z) {
         }
         if (getProperty("usePitchForTapping")) {
           writeBlock(
-            gRetractModal.format(98), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 77),
+            gRetractModal.format(98), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 78 : 77),
             getCommonCycle(x, y, cycle.bottom, cycle.retract),
-            conditional((P != 0), "P" + secFormat.format(P)),
             "Q" + xyzFormat.format(cycle.incrementalDepth),
-            conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
-            conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitch)),
+            conditional((unit == IN), "J" + xyzFormat.format(threadsPerInch)),
+            conditional((unit == MM), "I" + xyzFormat.format(threadPitch)),
             conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
           );
-        } else {
-          writeBlock(
-            gRetractModal.format(98), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND ? 74 : 77)),
-            getCommonCycle(x, y, z, cycle.retract),
-            "P" + secFormat.format(P),
-            "Q" + xyzFormat.format(cycle.incrementalDepth),
-            feedOutput.format(F)
-          );
+        } else { // G84/G74 does not support chip breaking
+          error(localize("Tapping with chip breaking is not supported by the G74/G84 cycle."));
         }
       }
       break;
