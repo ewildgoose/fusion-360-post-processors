@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 43727 1654000cf4b49699c85c4609a7371d9af234b038 $
-  $Date: 2022-03-29 15:59:01 $
+  $Revision: 43777 ff938d4771883144ce8a48c0567d8814618df70b $
+  $Date: 2022-04-21 16:47:31 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -63,11 +63,16 @@ properties = {
   },
   showSequenceNumbers: {
     title      : "Use sequence numbers",
-    description: "Use sequence numbers for each block of outputted code.",
+    description: "'Yes' outputs sequence numbers on each block, 'Only on tool change' outputs sequence numbers on tool change blocks only, and 'No' disables the output of sequence numbers.",
     group      : "formats",
-    type       : "boolean",
-    value      : true,
-    scope      : "post"
+    type       : "enum",
+    values     : [
+      {title:"Yes", id:"true"},
+      {title:"No", id:"false"},
+      {title:"Only on tool change", id:"toolChange"}
+    ],
+    value: "true",
+    scope: "post"
   },
   sequenceNumberStart: {
     title      : "Start sequence number",
@@ -352,7 +357,7 @@ function writeBlock() {
   if (!text) {
     return;
   }
-  if (getProperty("showSequenceNumbers")) {
+  if (getProperty("showSequenceNumbers") == "true") {
     if (optionalSection) {
       if (text) {
         writeWords("/", "N" + sequenceNumber, text);
@@ -370,7 +375,7 @@ function writeBlock() {
   Writes the specified optional block.
 */
 function writeOptionalBlock() {
-  if (getProperty("showSequenceNumbers")) {
+  if (getProperty("showSequenceNumbers") == "true") {
     var words = formatWords(arguments);
     if (words) {
       writeWords("/", "N" + sequenceNumber, words);
@@ -383,6 +388,16 @@ function writeOptionalBlock() {
 
 function formatComment(text) {
   return "(" + filterText(String(text).toUpperCase(), permittedCommentChars).replace(/[()]/g, "") + ")";
+}
+
+/**
+  Writes the specified block - used for tool changes only.
+*/
+function writeToolBlock() {
+  var show = getProperty("showSequenceNumbers");
+  setProperty("showSequenceNumbers", (show == "true" || show == "toolChange") ? "true" : "false");
+  writeBlock(arguments);
+  setProperty("showSequenceNumbers", show);
 }
 
 /**
@@ -1160,7 +1175,7 @@ function onSection() {
       warning(localize("Tool number exceeds maximum value."));
     }
 
-    writeBlock(gFormat.format(100),
+    writeToolBlock(gFormat.format(100),
       "T" + toolFormat.format(tool.number),
       conditional(!useMultiAxisFeatures, xOutput.format(start.x)),
       conditional(!useMultiAxisFeatures, yOutput.format(start.y)),
