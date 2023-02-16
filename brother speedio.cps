@@ -1,11 +1,11 @@
 /**
-  Copyright (C) 2012-2020 by Autodesk, Inc.
+  Copyright (C) 2012-2021 by Autodesk, Inc.
   All rights reserved.
 
   Brother Speedio post processor configuration.
 
-  $Revision: 43043 6a3164bde8f185e0f250627fe17999e8d091793e $
-  $Date: 2020-11-25 11:02:03 $
+  $Revision: 43145 7467f1b6d8e4ba9c186427689c09211388a95370 $
+  $Date: 2021-02-17 14:47:25 $
   
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -13,9 +13,9 @@
 description = "Brother Speedio";
 vendor = "Brother";
 vendorUrl = "http://www.brother.com";
-legal = "Copyright (C) 2012-2020 by Autodesk, Inc.";
+legal = "Copyright (C) 2012-2021 by Autodesk, Inc.";
 certificationLevel = 2;
-minimumRevision = 45500;
+minimumRevision = 45600;
 
 longDescription = "Generic milling post for Brother Speedio S300X1, S500X1 and S700X1 machines.";
 
@@ -58,7 +58,8 @@ properties = {
   doubleTapWithdrawSpeed: false, // if enabled, the withdraw speed of the tap is doubled
   useSmoothing: false, // high accuracy mode
   useInverseTime: false, // use Inverse Time feed rates for multi-axis moves
-  safePositionMethod: "G53" // specifies the desired safe position option
+  safePositionMethod: "G53", // specifies the desired safe position option
+  singleResultsFile: true // create a single file containing the results for all posted inspection toolpath
 };
 
 // user-defined property definitions
@@ -102,7 +103,8 @@ propertyDefinitions = {
       {title:"G53", id: "G53"},
       {title:"Clearance Height", id: "clearanceHeight"}
     ]
-  }
+  },
+  singleResultsFile: {title: "Create single results file", description: "Set to false if you want to store the measurement results for each probe / inspection toolpath in a separate file", group: 0, type: "boolean"}
 };
 
 var singleLineCoolant = false; // specifies to output multiple coolant codes in one line rather than in separate lines
@@ -128,6 +130,7 @@ var gFormat = createFormat({prefix:"G", width:2, zeropad:true, decimals:1});
 var mFormat = createFormat({prefix:"M", width:2, zeropad:true, decimals:1});
 var hFormat = createFormat({prefix:"H", width:2, zeropad:true, decimals:1});
 var dFormat = createFormat({prefix:"D", width:2, zeropad:true, decimals:1});
+var probeWCSFormat = createFormat({decimals:0, forceDecimal:true});
 
 var xyzFormat = createFormat({decimals:(unit == MM ? 3 : 4), forceDecimal:false});
 var rFormat = xyzFormat; // radius
@@ -161,7 +164,13 @@ var gFeedModeModal = createModal({}, gFormat); // modal group 5 // G94-95
 var gUnitModal = createModal({}, gFormat); // modal group 6 // G20-21
 var gCycleModal = createModal({force:true}, gFormat); // modal group 9 // G81, ...
 var gRetractModal = createModal({}, gFormat); // modal group 10 // G98-99
-var gRotationModal = createModal({}, gFormat); // modal group 16 // G68-G69
+var gRotationModal = createModal({
+  onchange: function () {
+    if (probeVariables.probeAngleMethod == "G68") {
+      probeVariables.outputRotationCodes = true;
+    }
+  }
+}, gFormat); // modal group 16 // G68-G69
 
 // fixed settings
 var firstFeedParameter = 500;
@@ -172,9 +181,12 @@ var useABCPrepositioning = false; // position ABC axes prior to G68.2 block
 
 var WARNING_WORK_OFFSET = 0;
 
-var ANGLE_PROBE_NOT_SUPPORTED = 0;
-var ANGLE_PROBE_USE_ROTATION = 1;
-var ANGLE_PROBE_USE_CAXIS = 2;
+var allowIndexingWCSProbing = false; // specifies that probe WCS with tool orientation is supported
+var probeVariables = {
+  outputRotationCodes: false, // defines if it is required to output rotation codes
+  probeAngleMethod: "OFF", // OFF, AXIS_ROT, G68, G54.4
+  compensationXY: undefined
+};
 
 // collected state
 var sequenceNumber;
@@ -184,8 +196,6 @@ var forceSpindleSpeed = false;
 var activeMovements; // do not use by default
 var currentFeedId;
 var retracted = false; // specifies that the tool has been retracted to the safe plane
-var g68RotationMode = 0;
-var angularProbingMode;
 probeMultipleFeatures = true;
 
 /**
@@ -618,7 +628,10 @@ function forceWorkPlane() {
   currentWorkPlaneABC = undefined;
 }
 
-function cancelWorkPlane() {
+function cancelWorkPlane(force) {
+  if (force) {
+    gRotationModal.reset();
+  }
   writeBlock(gRotationModal.format(69)); // cancel frame
   forceWorkPlane();
 }
@@ -647,7 +660,7 @@ function setWorkPlane(abc) {
     if (cancelTiltFirst) {
       cancelWorkPlane();
     }
-    if (machineConfiguration.isMultiAxisConfiguration() && useABCPrepositioning) {
+    if (machineConfiguration.isMultiAxisConfiguration() && (useABCPrepositioning || abc.isZero())) {
       var angles = abc.isNonZero() ? getWorkPlaneMachineABC(currentSection.workPlane, false, false) : abc;
       gMotionModal.reset();
       writeBlock(
@@ -747,8 +760,8 @@ function getWorkPlaneMachineABC(workPlane, _setWorkPlane, rotate) {
   return abc;
 }
 
-function isProbeOperation() {
-  return hasParameter("operation-strategy") && ((getParameter("operation-strategy") == "probe" || getParameter("operation-strategy") == "probe_geometry"));
+function printProbeResults() {
+  return ((currentSection.getParameter("printResults", 0) == 1) && (properties.probingType == "Renishaw"));
 }
 
 var probeOutputWorkOffset = 1;
@@ -888,7 +901,7 @@ function onSection() {
   }
 
   isSpeedDifferent = false;
-  if (!isProbeOperation() && (insertToolCall ||
+  if (tool.type != TOOL_PROBE && (insertToolCall ||
     isFirstSection() ||
     (rpmFormat.areDifferent(spindleSpeed, getPreviousSection().getTool().spindleRPM)) ||
     (tool.clockwise != getPreviousSection().getTool().clockwise))) {
@@ -926,9 +939,9 @@ function onSection() {
       (((properties.useAAxis || properties.useTrunnion) && abc) ? aOutput.format(abc.x) : undefined),
       ((properties.useTrunnion && abc) ? cOutput.format(abc.z) : undefined),
       conditional(!useMultiAxisFeatures, hFormat.format(tool.lengthOffset)),
-      (!isProbeOperation() ? dFormat.format(tool.diameterOffset) : ""),
-      (!isProbeOperation() ? sOutput.format(spindleSpeed) : ""),
-      (!isProbeOperation() ? mFormat.format(tool.clockwise ? 3 : 4) : "")
+      conditional(tool.type != TOOL_PROBE, dFormat.format(tool.diameterOffset)),
+      conditional(tool.type != TOOL_PROBE, sOutput.format(spindleSpeed)),
+      conditional(tool.type != TOOL_PROBE, mFormat.format(tool.clockwise ? 3 : 4))
     );
 
     if (tool.comment) {
@@ -964,7 +977,7 @@ function onSection() {
         }
       }
     }
-  } else if (!isProbeOperation() && isSpeedDifferent) {
+  } else if (tool.type != TOOL_PROBE && isSpeedDifferent) {
     writeBlock(sOutput.format(spindleSpeed));
   }
 
@@ -990,6 +1003,7 @@ function onSection() {
     writeBlock(gMotionModal.format(0), xOutput.format(start.x), yOutput.format(start.y));
     writeBlock(gMotionModal.format(0), gFormat.format(43), zOutput.format(start.z), hFormat.format(tool.lengthOffset));
   }
+  setProbeAngle(); // output probe angle rotations if required
 
   // set coolant after we have positioned at Z
   setCoolant(tool.coolant);
@@ -1027,7 +1041,7 @@ function onSection() {
     }
   }
 
-  if (isFirstSection() && (properties.washdownCoolant == "always")) {
+  if (tool.type != TOOL_PROBE && isFirstSection() && (properties.washdownCoolant == "always")) {
     writeBlock(mFormat.format(washdownCoolant.on));
   }
 
@@ -1083,16 +1097,13 @@ function onSection() {
   }
 
   if (isProbeOperation()) {
-    if (g68RotationMode != 0) {
-      error(localize("You cannot probe while G68 Rotation is in effect."));
-      return;
-    }
-    angularProbingMode = getAngularProbingMode();
+    validate(probeVariables.probeAngleMethod != "G68", "You cannot probe while G68 Rotation is in effect.");
+    validate(probeVariables.probeAngleMethod != "G54.4", "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
     if (properties.probingType == "Renishaw") {
       writeBlock(gFormat.format(65), "P" + 8832); // spin the probe on
+      inspectionCreateResultsFileHeader();
     }
   }
-
 }
 
 function onDwell(seconds) {
@@ -1124,47 +1135,64 @@ function approach(value) {
   return (value == "positive") ? 1 : -1;
 }
 
-/**
-  Determine if angular probing is supported
-*/
-function getAngularProbingMode() {
-  if (machineConfiguration.isMultiAxisConfiguration()) {
-    if (machineConfiguration.isMachineCoordinate(2)) {
-      return ANGLE_PROBE_USE_CAXIS;
-    } else {
-      return ANGLE_PROBE_NOT_SUPPORTED;
+function setProbeAngleMethod() {
+  probeVariables.probeAngleMethod = (machineConfiguration.getNumberOfAxes() < 5 || is3D()) ? (properties.useG54x4 ? "G54.4" : "G68") : "UNSUPPORTED";
+  var axes = [machineConfiguration.getAxisU(), machineConfiguration.getAxisV(), machineConfiguration.getAxisW()];
+  for (var i = 0; i < axes.length; ++i) {
+    if (axes[i].isEnabled() && isSameDirection((axes[i].getAxis()).getAbsolute(), new Vector(0, 0, 1)) && axes[i].isTable()) {
+      probeVariables.probeAngleMethod = "AXIS_ROT";
+      break;
     }
-  } else {
-    return ANGLE_PROBE_USE_ROTATION;
   }
+  probeVariables.outputRotationCodes = true;
 }
 
-/**
-  Output rotation offset based on angular probing cycle.
-*/
-function setProbingAngle() {
-  if ((g68RotationMode == 1) || (g68RotationMode == 2)) { // Rotate coordinate system for Angle Probing
-    if (!properties.useG54x4) {
+/** Output rotation offset based on angular probing cycle. */
+function setProbeAngle() {
+  if (probeVariables.outputRotationCodes) {
+    validate(probeOutputWorkOffset <= 6, "Angular Probing only supports work offsets 1-6.");
+    if (probeVariables.probeAngleMethod == "G68" && (Vector.diff(currentSection.getGlobalInitialToolAxis(), new Vector(0, 0, 1)).length > 1e-4)) {
+      error(localize("You cannot use multi axis toolpaths while G68 Rotation is in effect."));
+    }
+    var validateWorkOffset = false;
+    switch (probeVariables.probeAngleMethod) {
+    case "G54.4":
+      var param = 26000 + (probeOutputWorkOffset * 10);
+      writeBlock("#" + param + "=#135");
+      writeBlock("#" + (param + 1) + "=#136");
+      writeBlock("#" + (param + 5) + "=#144");
+      writeBlock(gFormat.format(54.4), "P" + probeOutputWorkOffset);
+      break;
+    case "G68":
       gRotationModal.reset();
       gAbsIncModal.reset();
+      var n = xyzFormat.format(0);
       writeBlock(
         gRotationModal.format(68), gAbsIncModal.format(90),
-        (g68RotationMode == 1) ? "X0" : "X[#135]",
-        (g68RotationMode == 1) ? "Y0" : "Y[#136]",
-        "Z0", "I0.0", "J0.0", "K1.0", "R[#139]"
+        probeVariables.compensationXY, "Z" + n, "I" + n, "J" + n, "K" + xyzFormat.format(1), "R[#144]"
       );
-      g68RotationMode = 3;
-    } else if (angularProbingMode != ANGLE_PROBE_NOT_SUPPORTED) {
-      writeBlock("#26010=#135");
-      writeBlock("#26011=#136");
-      writeBlock("#26012=#137");
-      writeBlock("#26015=#139");
-      writeBlock(gFormat.format(54.4), "P1");
-      g68RotationMode = 0;
-    } else {
-      error(localize("Angular probing is not supported for this machine configuration."));
+      validateWorkOffset = true;
+      break;
+    case "AXIS_ROT":
+      var param = 5200 + probeOutputWorkOffset * 20 + 5;
+      writeBlock("#" + param + " = " + "[#" + param + " + #144]");
+      forceWorkPlane(); // force workplane to rotate ABC in order to apply rotation offsets
+      currentWorkOffset = undefined; // force WCS output to make use of updated parameters
+      validateWorkOffset = true;
+      break;
+    default:
+      error(localize("Angular Probing is not supported for this machine configuration."));
       return;
     }
+    if (validateWorkOffset) {
+      for (var i = currentSection.getId(); i < getNumberOfSections(); ++i) {
+        if (getSection(i).workOffset != currentSection.workOffset) {
+          error(localize("WCS offset cannot change while using angle rotation compensation."));
+          return;
+        }
+      }
+    }
+    probeVariables.outputRotationCodes = false;
   }
 }
 
@@ -1185,24 +1213,35 @@ function protectedProbeMove(_cycle, x, y, z) {
 }
 
 function onCyclePoint(x, y, z) {
-  var probeWorkOffsetCode;
-  if (isProbeOperation()) {
-    if (!useMultiAxisFeatures && !isSameDirection(currentSection.workPlane.forward, new Vector(0, 0, 1)) && (!cycle.probeMode || (cycle.probeMode == 0))) {
-      error(localize("Updating WCS / work offset using probing is only supported by the CNC in the WCS frame."));
+  if (cycleType == "inspect") {
+    if (typeof inspectionCycleInspect == "function") {
+      inspectionCycleInspect(cycle, x, y, z);
       return;
+    } else {
+      cycleNotSupported();
+    }
+  }
+  if (!isSameDirection(getRotation().forward, new Vector(0, 0, 1))) {
+    expandCyclePoint(x, y, z);
+    return;
+  }
+
+  if (isProbeOperation()) {
+    if (!useMultiAxisFeatures && !isSameDirection(currentSection.workPlane.forward, new Vector(0, 0, 1))) {
+      if (!allowIndexingWCSProbing && currentSection.strategy == "probe") {
+        error(localize("Updating WCS / work offset using probing is only supported by the CNC in the WCS frame."));
+        return;
+      }
+    }
+    if (printProbeResults()) {
+      writeProbingToolpathInformation(z - cycle.depth + tool.diameter / 2);
+      inspectionWriteCADTransform();
+      inspectionWriteWorkplaneTransform();
+      if (typeof inspectionWriteVariables == "function") {
+        inspectionVariables.pointNumber += 1;
+      }
     }
     protectedProbeMove(cycle, x, y, z);
-
-    var workOffset = probeOutputWorkOffset ? probeOutputWorkOffset : currentWorkOffset;
-    if (workOffset > 99) {
-      error(localize("Work offset is out of range."));
-      return;
-    } else if (workOffset > 6) {
-      var p = workOffset - 6; // 1->...
-      probeWorkOffsetCode = -p; // G54.1P
-    } else {
-      probeWorkOffsetCode = ((properties.probingType == "Renishaw") ? (workOffset + ".") : (workOffset + 53)); // G54->G59
-    }
   }
 
   if (isFirstCyclePoint() || isProbeOperation()) {
@@ -1450,54 +1489,30 @@ function onCyclePoint(x, y, z) {
       break;
     case "probing-x":
       protectedProbeMove(cycle, x, y, z - cycle.depth);
-      if (properties.probingType == "Renishaw") {
-        writeBlock(
-          gFormat.format(65), "P" + 8811,
-          "X" + xyzFormat.format(x + approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2)),
-          "Q" + xyzFormat.format(cycle.probeOvertravel),
-          getProbingArguments(cycle, probeWorkOffsetCode)
-        );
-      } else {
-        writeBlock(
-          gFormat.format(65), "P" + 8700,
-          "X" + xyzFormat.format(approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2)),
-          getProbingArguments(cycle, probeWorkOffsetCode)
-        );
-      }
+      writeBlock(
+        gFormat.format(65), "P" + (properties.probingType == "Renishaw" ? 8811 : 8700),
+        "X" + xyzFormat.format(x + approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2)),
+        "Q" + xyzFormat.format(cycle.probeOvertravel),
+        getProbingArguments(cycle, true)
+      );
       break;
     case "probing-y":
       protectedProbeMove(cycle, x, y, z - cycle.depth);
-      if (properties.probingType == "Renishaw") {
-        writeBlock(
-          gFormat.format(65), "P" + 8811,
-          "X" + xyzFormat.format(x + approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2)),
-          "Q" + xyzFormat.format(cycle.probeOvertravel),
-          getProbingArguments(cycle, probeWorkOffsetCode)
-        );
-      } else {
-        writeBlock(
-          gFormat.format(65), "P" + 8700,
-          "Y" + xyzFormat.format(approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2)),
-          getProbingArguments(cycle, probeWorkOffsetCode)
-        );
-      }
+      writeBlock(
+        gFormat.format(65), "P" + (properties.probingType == "Renishaw" ? 8811 : 8700),
+        "Y" + xyzFormat.format(y + approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2)),
+        "Q" + xyzFormat.format(cycle.probeOvertravel),
+        getProbingArguments(cycle, true)
+      );
       break;
     case "probing-z":
       protectedProbeMove(cycle, x, y, Math.min(z - cycle.depth + cycle.probeClearance, cycle.retract));
-      if (properties.probingType == "Renishaw") {
-        writeBlock(
-          gFormat.format(65), "P" + 8811,
-          "X" + xyzFormat.format(x + approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2)),
-          "Q" + xyzFormat.format(cycle.probeOvertravel),
-          getProbingArguments(cycle, probeWorkOffsetCode)
-        );
-      } else {
-        writeBlock(
-          gFormat.format(65), "P" + 8700,
-          "Z" + xyzFormat.format(-cycle.depth),
-          getProbingArguments(cycle, probeWorkOffsetCode)
-        );
-      }
+      writeBlock(
+        gFormat.format(65), "P" + (properties.probingType == "Renishaw" ? 8811 : 8700),
+        "Z" + xyzFormat.format(z - cycle.depth),
+        "Q" + xyzFormat.format(cycle.probeOvertravel),
+        getProbingArguments(cycle, true)
+      );
       break;
     case "probing-x-wall":
       protectedProbeMove(cycle, x, y, z);
@@ -1505,19 +1520,20 @@ function onCyclePoint(x, y, z) {
         writeBlock(
           gFormat.format(65), "P" + 8812,
           "X" + xyzFormat.format(cycle.width1),
-          zOutput.format(z - cycle.depth),
+          "Z" + xyzFormat.format(z - cycle.depth),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
           "R" + xyzFormat.format(cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
       } else {
         writeBlock(
           gFormat.format(65), "P" + 8700,
           "S" + xyzFormat.format(cycle.width1),
           "X1",
-          zOutput.format(-cycle.depth),
+          "Z" + xyzFormat.format(-cycle.depth),
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
           "R" + xyzFormat.format(cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
       }
       break;
@@ -1527,19 +1543,20 @@ function onCyclePoint(x, y, z) {
         writeBlock(
           gFormat.format(65), "P" + 8812,
           "Y" + xyzFormat.format(cycle.width1),
-          zOutput.format(z - cycle.depth),
+          "Z" + xyzFormat.format(z - cycle.depth),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
           "R" + xyzFormat.format(cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
       } else {
         writeBlock(
           gFormat.format(65), "P" + 8700,
           "S" + xyzFormat.format(cycle.width1),
-          zOutput.format(-cycle.depth),
+          "Z" + xyzFormat.format(-cycle.depth),
           "Y1",
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
           "R" + xyzFormat.format(cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
       }
       break;
@@ -1551,14 +1568,15 @@ function onCyclePoint(x, y, z) {
           "X" + xyzFormat.format(cycle.width1),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
           // not required "R" + xyzFormat.format(cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
       } else {
         writeBlock(
           gFormat.format(65), "P" + 8700,
           "S" + xyzFormat.format(cycle.width1),
           "X1",
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
+          getProbingArguments(cycle, true)
         );
       }
       break;
@@ -1568,19 +1586,20 @@ function onCyclePoint(x, y, z) {
         writeBlock(
           gFormat.format(65), "P" + 8812,
           "X" + xyzFormat.format(cycle.width1),
-          zOutput.format(z - cycle.depth),
+          "Z" + xyzFormat.format(z - cycle.depth),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
           "R" + xyzFormat.format(-cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
       } else {
         writeBlock(
           gFormat.format(65), "P" + 8700,
           "R" + xyzFormat.format(-cycle.probeClearance),
           "S" + xyzFormat.format(cycle.width1),
-          zOutput.format(-cycle.depth),
+          "Z" + xyzFormat.format(-cycle.depth),
           "X1",
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
+          getProbingArguments(cycle, true)
         );
       }
       break;
@@ -1592,14 +1611,15 @@ function onCyclePoint(x, y, z) {
           "Y" + xyzFormat.format(cycle.width1),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
           // not required "R" + xyzFormat.format(cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
       } else {
         writeBlock(
           gFormat.format(65), "P" + 8700,
           "S" + xyzFormat.format(cycle.width1),
           "Y1",
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
+          getProbingArguments(cycle, true)
         );
       }
       break;
@@ -1609,19 +1629,20 @@ function onCyclePoint(x, y, z) {
         writeBlock(
           gFormat.format(65), "P" + 8812,
           "Y" + xyzFormat.format(cycle.width1),
-          zOutput.format(z - cycle.depth),
+          "Z" + xyzFormat.format(z - cycle.depth),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
           "R" + xyzFormat.format(-cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
       } else {
         writeBlock(
           gFormat.format(65), "P" + 8700,
           "R" + xyzFormat.format(-cycle.probeClearance),
           "S" + xyzFormat.format(cycle.width1),
-          zOutput.format(-cycle.depth),
+          "Z" + xyzFormat.format(-cycle.depth),
           "Y1",
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
+          getProbingArguments(cycle, true)
         );
       }
       break;
@@ -1634,16 +1655,35 @@ function onCyclePoint(x, y, z) {
           "Z" + xyzFormat.format(z - cycle.depth),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
           "R" + xyzFormat.format(cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
       } else {
         writeBlock(
           gFormat.format(65), "P" + 8700,
           "S" + xyzFormat.format(cycle.width1),
           "Z" + xyzFormat.format(-cycle.depth),
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
           "R" + xyzFormat.format(cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
+      }
+      break;
+    case "probing-xy-circular-partial-boss":
+      protectedProbeMove(cycle, x, y, z);
+      if (properties.probingType == "Renishaw") {
+        writeBlock(
+          gFormat.format(65), "P" + 8823,
+          "A" + xyzFormat.format(cycle.partialCircleAngleA),
+          "B" + xyzFormat.format(cycle.partialCircleAngleB),
+          "C" + xyzFormat.format(cycle.partialCircleAngleC),
+          "D" + xyzFormat.format(cycle.width1),
+          "Z" + xyzFormat.format(z - cycle.depth),
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
+          "R" + xyzFormat.format(cycle.probeClearance),
+          getProbingArguments(cycle, true)
+        );
+      } else {
+        error(localize("XY circular partial boss probing is not supported."));
       }
       break;
     case "probing-xy-circular-hole":
@@ -1654,14 +1694,31 @@ function onCyclePoint(x, y, z) {
           "D" + xyzFormat.format(cycle.width1),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
           // not required "R" + xyzFormat.format(cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
       } else {
         writeBlock(
           gFormat.format(65), "P" + 8700,
           "S" + xyzFormat.format(cycle.width1),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
+          getProbingArguments(cycle, true)
         );
+      }
+      break;
+    case "probing-xy-circular-partial-hole":
+      protectedProbeMove(cycle, x, y, z - cycle.depth);
+      if (properties.probingType == "Renishaw") {
+        writeBlock(
+          gFormat.format(65), "P" + 8823,
+          "A" + xyzFormat.format(cycle.partialCircleAngleA),
+          "B" + xyzFormat.format(cycle.partialCircleAngleB),
+          "C" + xyzFormat.format(cycle.partialCircleAngleC),
+          "D" + xyzFormat.format(cycle.width1),
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
+          getProbingArguments(cycle, true)
+        );
+      } else {
+        error(localize("XY circular partial hole probing is not supported."));
       }
       break;
     case "probing-xy-circular-hole-with-island":
@@ -1673,16 +1730,35 @@ function onCyclePoint(x, y, z) {
           "D" + xyzFormat.format(cycle.width1),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
           "R" + xyzFormat.format(-cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
       } else {
         writeBlock(
           gFormat.format(65), "P" + 8700,
           "R" + xyzFormat.format(-cycle.probeClearance),
           "S" + xyzFormat.format(cycle.width1),
-          zOutput.format(-cycle.depth),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
+          "Z" + xyzFormat.format(-cycle.depth),
+          getProbingArguments(cycle, true)
         );
+      }
+      break;
+    case "probing-xy-circular-partial-hole-with-island":
+      protectedProbeMove(cycle, x, y, z);
+      if (properties.probingType == "Renishaw") {
+        writeBlock(
+          gFormat.format(65), "P" + 8823,
+          "Z" + xyzFormat.format(z - cycle.depth),
+          "A" + xyzFormat.format(cycle.partialCircleAngleA),
+          "B" + xyzFormat.format(cycle.partialCircleAngleB),
+          "C" + xyzFormat.format(cycle.partialCircleAngleC),
+          "D" + xyzFormat.format(cycle.width1),
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
+          "R" + xyzFormat.format(-cycle.probeClearance),
+          getProbingArguments(cycle, true)
+        );
+      } else {
+        error(localize("XY circular partial hole with island probing is not supported."));
       }
       break;
     case "probing-xy-rectangular-hole":
@@ -1693,14 +1769,14 @@ function onCyclePoint(x, y, z) {
           "X" + xyzFormat.format(cycle.width1),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
           // not required "R" + xyzFormat.format(-cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
         writeBlock(
           gFormat.format(65), "P" + 8812,
           "Y" + xyzFormat.format(cycle.width2),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
           // not required "R" + xyzFormat.format(-cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
       } else {
         error(localize("XY rectangular hole probing is not supported."));
@@ -1715,7 +1791,7 @@ function onCyclePoint(x, y, z) {
           "X" + xyzFormat.format(cycle.width1),
           "R" + xyzFormat.format(cycle.probeClearance),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
         writeBlock(
           gFormat.format(65), "P" + 8812,
@@ -1723,7 +1799,7 @@ function onCyclePoint(x, y, z) {
           "Y" + xyzFormat.format(cycle.width2),
           "R" + xyzFormat.format(cycle.probeClearance),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
       } else {
         zOutput.reset();
@@ -1731,18 +1807,20 @@ function onCyclePoint(x, y, z) {
           gFormat.format(65), "P" + 8700,
           "S" + xyzFormat.format(cycle.width1),
           "X1",
-          zOutput.format(-cycle.depth),
+          "Z" + xyzFormat.format(-cycle.depth),
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
           "R" + xyzFormat.format(cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
         zOutput.reset();
         writeBlock(
           gFormat.format(65), "P" + 8700,
           "S" + xyzFormat.format(cycle.width2),
           "Y1",
-          zOutput.format(-cycle.depth),
+          "Z" + xyzFormat.format(-cycle.depth),
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
           "R" + xyzFormat.format(cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
       }
       break;
@@ -1755,7 +1833,7 @@ function onCyclePoint(x, y, z) {
           "X" + xyzFormat.format(cycle.width1),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
           "R" + xyzFormat.format(-cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
         writeBlock(
           gFormat.format(65), "P" + 8812,
@@ -1763,14 +1841,13 @@ function onCyclePoint(x, y, z) {
           "Y" + xyzFormat.format(cycle.width2),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
           "R" + xyzFormat.format(-cycle.probeClearance),
-          getProbingArguments(cycle, probeWorkOffsetCode)
+          getProbingArguments(cycle, true)
         );
       } else {
         error(localize("XY rectangular hole with island probing is not supported."));
       }
       break;
     case "probing-xy-inner-corner":
-      protectedProbeMove(cycle, x, y, z - cycle.depth);
       if (properties.probingType == "Renishaw") {
         var cornerX = x + approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2);
         var cornerY = y + approach(cycle.approach2) * (cycle.probeClearance + tool.diameter / 2);
@@ -1781,14 +1858,18 @@ function onCyclePoint(x, y, z) {
           cornerJ = cycle.probeSpacing;
         }
         if ((cornerI != 0) && (cornerJ != 0)) {
-          g68RotationMode = 2;
+          if (currentSection.strategy == "probe") {
+            setProbeAngleMethod();
+            probeVariables.compensationXY = "X[#135] Y[#136]";
+          }
         }
+        protectedProbeMove(cycle, x, y, z - cycle.depth);
         writeBlock(
           gFormat.format(65), "P" + 8815, xOutput.format(cornerX), yOutput.format(cornerY),
           conditional(cornerI != 0, "I" + xyzFormat.format(cornerI)),
           conditional(cornerJ != 0, "J" + xyzFormat.format(cornerJ)),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
-          conditional((g68RotationMode == 0) || (angularProbingMode == ANGLE_PROBE_USE_CAXIS), getProbingArguments(cycle, probeWorkOffsetCode))
+          getProbingArguments(cycle, true)
         );
       } else {
         error(localize("XY inner corner probing is not supported."));
@@ -1804,7 +1885,10 @@ function onCyclePoint(x, y, z) {
         cornerJ = cycle.probeSpacing;
       }
       if ((cornerI != 0) && (cornerJ != 0)) {
-        g68RotationMode = 2;
+        if (currentSection.strategy == "probe") {
+          setProbeAngleMethod();
+          probeVariables.compensationXY = "X[#135] Y[#136]";
+        }
       }
       protectedProbeMove(cycle, x, y, z - cycle.depth);
       if (properties.probingType == "Renishaw") {
@@ -1813,14 +1897,15 @@ function onCyclePoint(x, y, z) {
           conditional(cornerI != 0, "I" + xyzFormat.format(cornerI)),
           conditional(cornerJ != 0, "J" + xyzFormat.format(cornerJ)),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
-          conditional((g68RotationMode == 0) || (angularProbingMode == ANGLE_PROBE_USE_CAXIS), getProbingArguments(cycle, probeWorkOffsetCode))
+          getProbingArguments(cycle, true)
         );
       } else {
         cornerX -= x;
         cornerY -= y;
         writeBlock(
-          gFormat.format(65), "P" + 8700, xOutput.format(cornerX),
-          yOutput.format(cornerY), getProbingArguments(cycle, probeWorkOffsetCode)
+          gFormat.format(65), "P" + 8700, xOutput.format(cornerX), yOutput.format(cornerY),
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
+          getProbingArguments(cycle, true)
         );
       }
       break;
@@ -1832,9 +1917,13 @@ function onCyclePoint(x, y, z) {
           "X" + xyzFormat.format(x + approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2)),
           "D" + xyzFormat.format(cycle.probeSpacing),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
+          "A" + xyzFormat.format(cycle.nominalAngle != undefined ? cycle.nominalAngle : 90),
           getProbingArguments(cycle, false)
         );
-        g68RotationMode = 1;
+        if (currentSection.strategy == "probe") {
+          setProbeAngleMethod();
+          probeVariables.compensationXY = "X" + xyzFormat.format(0) + " Y" + xyzFormat.format(0);
+        }
       } else {
         error(localize("X angle probing is not supported."));
       }
@@ -1847,11 +1936,58 @@ function onCyclePoint(x, y, z) {
           "Y" + xyzFormat.format(y + approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2)),
           "D" + xyzFormat.format(cycle.probeSpacing),
           "Q" + xyzFormat.format(cycle.probeOvertravel),
+          "A" + xyzFormat.format(cycle.nominalAngle != undefined ? cycle.nominalAngle : 0),
           getProbingArguments(cycle, false)
         );
-        g68RotationMode = 1;
+        if (currentSection.strategy == "probe") {
+          setProbeAngleMethod();
+          probeVariables.compensationXY = "X" + xyzFormat.format(0) + " Y" + xyzFormat.format(0);
+        }
       } else {
         error(localize("Y angle probing is not supported."));
+      }
+      break;
+    case "probing-xy-pcd-hole":
+      protectedProbeMove(cycle, x, y, z);
+      if (properties.probingType == "Renishaw") {
+        writeBlock(
+          gFormat.format(65), "P" + 8819,
+          "A" + xyzFormat.format(cycle.pcdStartingAngle),
+          "B" + xyzFormat.format(cycle.numberOfSubfeatures),
+          "C" + xyzFormat.format(cycle.widthPCD),
+          "D" + xyzFormat.format(cycle.widthFeature),
+          "K" + xyzFormat.format(z - cycle.depth),
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
+          getProbingArguments(cycle, false)
+        );
+        if (cycle.updateToolWear) {
+          error(localize("Action -Update Tool Wear- is not supported with this cycle."));
+          return;
+        }
+      } else {
+        error(localize("XY PCD hole probing is not supported."));
+      }
+      break;
+    case "probing-xy-pcd-boss":
+      protectedProbeMove(cycle, x, y, z);
+      if (properties.probingType == "Renishaw") {
+        writeBlock(
+          gFormat.format(65), "P" + 8819,
+          "A" + xyzFormat.format(cycle.pcdStartingAngle),
+          "B" + xyzFormat.format(cycle.numberOfSubfeatures),
+          "C" + xyzFormat.format(cycle.widthPCD),
+          "D" + xyzFormat.format(cycle.widthFeature),
+          "Z" + xyzFormat.format(z - cycle.depth),
+          "Q" + xyzFormat.format(cycle.probeOvertravel),
+          "R" + xyzFormat.format(cycle.probeClearance),
+          getProbingArguments(cycle, false)
+        );
+        if (cycle.updateToolWear) {
+          error(localize("Action -Update Tool Wear- is not supported with this cycle."));
+          return;
+        }
+      } else {
+        error(localize("XY PCD boss probing is not supported."));
       }
       break;
     default:
@@ -1866,26 +2002,42 @@ function onCyclePoint(x, y, z) {
   }
 }
 
-function getProbingArguments(cycle, probeWorkOffsetCode) {
-  var probeWCS = hasParameter("operation-strategy") && (getParameter("operation-strategy") == "probe");
-  return [
-    (cycle.angleAskewAction == "stop-message" ? "B" + xyzFormat.format(cycle.toleranceAngle ? cycle.toleranceAngle : 0) : undefined),
-    ((cycle.updateToolWear && cycle.toolWearErrorCorrection < 100) ? "F" + xyzFormat.format(cycle.toolWearErrorCorrection ? cycle.toolWearErrorCorrection / 100 : 100) : undefined),
-    (cycle.wrongSizeAction == "stop-message" ? "H" + xyzFormat.format(cycle.toleranceSize ? cycle.toleranceSize : 0) : undefined),
-    (cycle.outOfPositionAction == "stop-message" ? "M" + xyzFormat.format(cycle.tolerancePosition ? cycle.tolerancePosition : 0) : undefined),
-    ((cycle.updateToolWear && cycleType == "probing-z") ? "T" + xyzFormat.format(cycle.toolLengthOffset) : undefined),
-    ((cycle.updateToolWear && cycleType !== "probing-z") ? "T" + xyzFormat.format(cycle.toolDiameterOffset) : undefined),
-    (cycle.updateToolWear ? "V" + xyzFormat.format(cycle.toolWearUpdateThreshold ? cycle.toolWearUpdateThreshold : 0) : undefined),
-    (cycle.printResults ? "W" + xyzFormat.format(1 + cycle.incrementComponent) : undefined), // 1 for advance feature, 2 for reset feature count and advance component number. first reported result in a program should use W2.
-    conditional(probeWorkOffsetCode && probeWCS, (properties.probingType == "Renishaw" ? "S" : "W") + probeWorkOffsetCode)
-  ];
+function getProbingArguments(cycle, updateWCS) {
+  var outputWCSCode = updateWCS && currentSection.strategy == "probe";
+  if (outputWCSCode) {
+    validate(probeOutputWorkOffset <= 99, "Work offset is out of range.");
+    var nextWorkOffset = hasNextSection() ? getNextSection().workOffset == 0 ? 1 : getNextSection().workOffset : -1;
+    if (probeOutputWorkOffset == nextWorkOffset) {
+      currentWorkOffset = undefined;
+    }
+  }
+  if (properties.probingType == "Renishaw") {
+    return [
+      (cycle.angleAskewAction == "stop-message" ? "B" + xyzFormat.format(cycle.toleranceAngle ? cycle.toleranceAngle : 0) : undefined),
+      ((cycle.updateToolWear && cycle.toolWearErrorCorrection < 100) ? "F" + xyzFormat.format(cycle.toolWearErrorCorrection ? cycle.toolWearErrorCorrection / 100 : 100) : undefined),
+      (cycle.wrongSizeAction == "stop-message" ? "H" + xyzFormat.format(cycle.toleranceSize ? cycle.toleranceSize : 0) : undefined),
+      (cycle.outOfPositionAction == "stop-message" ? "M" + xyzFormat.format(cycle.tolerancePosition ? cycle.tolerancePosition : 0) : undefined),
+      ((cycle.updateToolWear && cycleType == "probing-z") ? "T" + xyzFormat.format(cycle.toolLengthOffset) : undefined),
+      ((cycle.updateToolWear && cycleType !== "probing-z") ? "T" + xyzFormat.format(cycle.toolDiameterOffset) : undefined),
+      (cycle.updateToolWear ? "V" + xyzFormat.format(cycle.toolWearUpdateThreshold ? cycle.toolWearUpdateThreshold : 0) : undefined),
+      (cycle.printResults ? "W" + xyzFormat.format(1 + cycle.incrementComponent) : undefined), // 1 for advance feature, 2 for reset feature count and advance component number. first reported result in a program should use W2.
+      conditional(outputWCSCode, "S" + probeWCSFormat.format(probeOutputWorkOffset > 6 ? (probeOutputWorkOffset - 6 + 100) : probeOutputWorkOffset))
+    ];
+  } else {
+    return [
+      (cycle.wrongSizeAction == "stop-message" ? "T" + xyzFormat.format(cycle.toleranceSize ? cycle.toleranceSize : 0) : undefined),
+      (cycle.outOfPositionAction == "stop-message" ? "T" + xyzFormat.format(cycle.tolerancePosition ? -1 * cycle.tolerancePosition : 0) : undefined),
+      (cycle.updateToolWear ? "E" + xyzFormat.format(cycle.toolWearNumber) : undefined),
+      conditional(outputWCSCode, "W" + probeWCSFormat.format(probeOutputWorkOffset > 6 ? -1 * (probeOutputWorkOffset - 6) : (probeOutputWorkOffset + 53)))
+    ];
+  }
 }
 
 function onCycleEnd() {
   if (isProbeOperation()) {
+    zOutput.reset();
+    gMotionModal.reset();
     if (properties.probingType == "Renishaw") {
-      zOutput.reset();
-      gMotionModal.reset();
       writeBlock(gFormat.format(65), "P" + 8810, zOutput.format(cycle.retract)); // protected retract move
     } else {
       writeBlock(gFormat.format(65), "P" + 8703, zOutput.format(cycle.retract)); // protected retract move
@@ -2669,7 +2821,7 @@ function onSectionEnd() {
     currentMachineABC = currentSection.getFinalToolAxisABC();
   }
 
-  if (!isProbeOperation() && properties.washdownCoolant == "operationEnd") {
+  if (tool.type != TOOL_PROBE && properties.washdownCoolant == "operationEnd") {
     writeBlock(mFormat.format(washdownCoolant.on));
     writeBlock(mFormat.format(washdownCoolant.off));
   }
@@ -2678,8 +2830,10 @@ function onSectionEnd() {
   }
   if (isProbeOperation()) {
     if (properties.probingType == "Renishaw") {
-      writeBlock(gFormat.format(65), "P" + 9833); // spin the probe off
-      setProbingAngle(); // define rotation of part
+      writeBlock(gFormat.format(65), "P" + 8833); // spin the probe off
+      if (probeVariables.probeAngleMethod != "G68") {
+        setProbeAngle(); // output probe angle rotations if required
+      }
     }
   }
   forceAny();
@@ -2709,7 +2863,9 @@ function writeRetract() {
   if (retractAxes[2]) { // Z doesn't use G53
     method = "G28";
   }
-
+  if (gRotationModal.getCurrent() == 68) { // cancel G68 before retracting
+    cancelWorkPlane(true);
+  }
   // define home positions
   var _xHome;
   var _yHome;
@@ -2762,12 +2918,111 @@ function writeRetract() {
   }
 }
 
+var isDPRNTopen = false;
+function inspectionCreateResultsFileHeader() {
+  if (isDPRNTopen) {
+    if (!properties.singleResultsFile) {
+      writeln("DPRNT[END]");
+      writeBlock("PCLOS");
+      isDPRNTopen = false;
+    }
+  }
+
+  if (isProbeOperation() && !printProbeResults()) {
+    return; // if print results is not desired by probe/ probeWCS
+  }
+
+  if (!isDPRNTopen) {
+    writeBlock("PCLOS");
+    writeBlock("POPEN");
+    // check for existence of none alphanumeric characters but not spaces
+    var resFile;
+    if (properties.singleResultsFile) {
+      resFile = getParameter("job-description") + "-RESULTS";
+    } else {
+      resFile = getParameter("operation-comment") + "-RESULTS";
+    }
+    resFile = resFile.replace(/:/g, "-");
+    resFile = resFile.replace(/[^a-zA-Z0-9 -]/g, "");
+    resFile = resFile.replace(/\s/g, "-");
+    writeln("DPRNT[START]");
+    writeln("DPRNT[RESULTSFILE*" + resFile + "]");
+    if (hasGlobalParameter("document-id")) {
+      writeln("DPRNT[DOCUMENTID*" + getGlobalParameter("document-id") + "]");
+    }
+    if (hasGlobalParameter("model-version")) {
+      writeln("DPRNT[MODELVERSION*" + getGlobalParameter("model-version") + "]");
+    }
+  }
+  if (isProbeOperation() && printProbeResults()) {
+    isDPRNTopen = true;
+  }
+}
+
+function getPointNumber() {
+  if (typeof inspectionWriteVariables == "function") {
+    return (inspectionVariables.pointNumber);
+  } else {
+    return ("#122[60]");
+  }
+}
+
+function inspectionWriteCADTransform() {
+  var cadOrigin = currentSection.getModelOrigin();
+  var cadWorkPlane = currentSection.getModelPlane().getTransposed();
+  var cadEuler = cadWorkPlane.getEuler2(EULER_XYZ_S);
+  writeln(
+    "DPRNT[G331" +
+    "*N" + getPointNumber() +
+    "*A" + abcFormat.format(cadEuler.x) +
+    "*B" + abcFormat.format(cadEuler.y) +
+    "*C" + abcFormat.format(cadEuler.z) +
+    "*X" + xyzFormat.format(-cadOrigin.x) +
+    "*Y" + xyzFormat.format(-cadOrigin.y) +
+    "*Z" + xyzFormat.format(-cadOrigin.z) +
+    "]"
+  );
+}
+
+function inspectionWriteWorkplaneTransform() {
+  var orientation = (machineConfiguration.isMultiAxisConfiguration() && currentMachineABC != undefined) ? machineConfiguration.getOrientation(currentMachineABC) : currentSection.workPlane;
+  var abc = orientation.getEuler2(EULER_XYZ_S);
+  writeln("DPRNT[G330" +
+    "*N" + getPointNumber() +
+    "*A" + abcFormat.format(abc.x) +
+    "*B" + abcFormat.format(abc.y) +
+    "*C" + abcFormat.format(abc.z) +
+    "*X0*Y0*Z0*I0*R0]"
+  );
+}
+
+function writeProbingToolpathInformation(cycleDepth) {
+  writeln("DPRNT[TOOLPATHID*" + getParameter("autodeskcam:operation-id") + "]");
+  if (isInspectionOperation()) {
+    writeln("DPRNT[TOOLPATH*" + getParameter("operation-comment") + "]");
+  } else {
+    writeln("DPRNT[CYCLEDEPTH*" + xyzFormat.format(cycleDepth) + "]");
+  }
+}
+
 function onClose() {
+  if (isDPRNTopen) {
+    writeln("DPRNT[END]");
+    writeBlock("PCLOS");
+    isDPRNTopen = false;
+    if (typeof inspectionProcessSectionEnd == "function") {
+      inspectionProcessSectionEnd();
+    }
+  }
+
+  if (probeVariables.probeAngleMethod == "G68") {
+    cancelWorkPlane();
+  }
   writeln("");
   optionalSection = false;
 
   setCoolant(COOLANT_OFF);
-  if (!isProbeOperation() && (properties.washdownCoolant == "always") || properties.washdownCoolant == "programEnd") {
+  if (tool.type != TOOL_PROBE && (properties.washdownCoolant == "always" || properties.washdownCoolant == "programEnd")) {
     if (properties.washdownCoolant == "programEnd") {
       writeBlock(mFormat.format(washdownCoolant.on));
     }
