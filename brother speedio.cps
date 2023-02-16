@@ -1341,7 +1341,7 @@ function onDwell(seconds) {
   if (seconds > 99999.999) {
     warning(localize("Dwelling time is out of range."));
   }
-  seconds = clamp(1, seconds, 99999999);
+  seconds = clamp(0, seconds, 99999999);
   writeBlock(gFeedModeModal.format(94), gFormat.format(4), "P" + secFormat.format(seconds));
 }
 
