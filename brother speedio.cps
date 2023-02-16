@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 43462 e9b6842f3e6234c1aaf343320b80f62d2d29ad08 $
-  $Date: 2021-10-12 12:45:30 $
+  $Revision: 43468 a53b5c5fccc97e1ca52b65656fb578fc3ad4949a $
+  $Date: 2021-10-13 15:38:26 $
   
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -172,12 +172,34 @@ properties = {
     value: false,
     scope: "post"
   },
+  smoothingMode: {
+    title:"High accuracy mode",
+    description:"Select the high accuracy mode supported by the control.",
+    group:2,
+    type:"enum",
+    values:[
+      {title:"A", id:"A"},
+      {title:"B", id:"B"},
+      {title:"M298", id:"M298"}
+    ],
+    value: "A"
+  },
   useSmoothing: {
-    title: "Use high accuraccy mode",
-    description: "Selects whether the feedrate, or pitch in MM or TPI for Inch is output for tapping cycles.",
-    type: "boolean",
-    value: false,
-    scope: "post"
+    title:"High accuracy level",
+    description:"Select the high accuracy level to use for machining.",
+    group:2,
+    type:"enum",
+    values:[
+      {title:"Off", id:"-1"},
+      {title:"Automatic", id:"9999"},
+      {title:"Standard", id:"0"}, // 0
+      {title:"Roughing", id:"1"}, // 5
+      {title:"Medium rough", id:"2"}, // 3
+      {title:"Medium rough high", id:"3"}, // 4
+      {title:"Finishing", id:"4"}, // 1
+      {title:"Finishing high", id:"5"} // 2
+    ],
+    value: "-1"
   },
   useInverseTime: {
     title: "Use inverse time feedrates",
@@ -526,52 +548,133 @@ function forceAny() {
   forceFeed();
 }
 
-var currentSmoothing = false;
+// Start of smoothing logic
+var smoothingSettings = {
+  roughing: 2, // roughing level for smoothing in automatic mode
+  semi: 3, // semi-roughing level for smoothing in automatic mode
+  semifinishing: 4, // semi-finishing level for smoothing in automatic mode
+  finishing: 5, // finishing level for smoothing in automatic mode
+  thresholdRoughing: toPreciseUnit(0.5, MM), // operations with stock/tolerance above that threshold will use roughing level in automatic mode
+  thresholdFinishing: toPreciseUnit(0.05, MM), // operations with stock/tolerance below that threshold will use finishing level in automatic mode
+  thresholdSemiFinishing: toPreciseUnit(0.1, MM), // operations with stock/tolerance above finishing and below threshold roughing that threshold will use semi finishing level in automatic mode
+  
+  differenceCriteria: "level", // options: "level", "tolerance", "both". Specifies criteria when output smoothing codes
+  autoLevelCriteria: "stock", // use "stock"  or "tolerance" to determine levels in automatic mode
+  cancelCompensation: false // tool length compensation must be canceled prior to changing the smoothing level
+};
 
-function setSmoothing(mode) {
-  if (mode == currentSmoothing) {
-    return false;
+// collected state below, do not edit
+var smoothing = {
+  isActive: false, // the current state of smoothing
+  isAllowed: false, // smoothing is allowed for this operation
+  isDifferent: false, // tells if smoothing levels/tolerances/both are different between operations
+  level: -1, // the active level of smoothing
+  tolerance: -1, // the current operation tolerance
+  force: false // smoothing needs to be forced out in this operation
+};
+
+function initializeSmoothing() {
+  var previousLevel = smoothing.level;
+  var previousTolerance = smoothing.tolerance;
+
+  // determine new smoothing levels and tolerances
+  smoothing.level = parseInt(getProperty("useSmoothing"), 10);
+  smoothing.level = isNaN(smoothing.level) ? -1 : smoothing.level;
+  smoothing.tolerance = Math.max(getParameter("operation:tolerance", smoothingSettings.thresholdFinishing), 0);
+
+  // setup for proper smoothing mode
+  switch (getProperty("smoothingMode")) {
+  case "A":
+  case "B":
+    smoothingSettings.roughing = 5;
+    smoothingSettings.semi = 3;
+    smoothingSettings.semifinishing = 1;
+    smoothingSettings.finishing = 2;
+    smoothing.level = (smoothing.level >= 0 && smoothing.level <= 5) ? [0, 5, 3, 4, 1, 2][smoothing.level] : smoothing.level;
+    break;
   }
-
-  currentSmoothing = mode;
-
-  if (!mode) { // disable high accuracy mode
-    writeBlock(mFormat.format(269)); // reset G332 setting to machine default
-  } else if (hasParameter("operation-strategy") && (getParameter("operation-strategy") == "drill")) {
-    writeBlock(mFormat.format(269));
-    currentSmoothing = false;
-  } else if (hasParameter("operation:tolerance")) {
-    var tolerance = Math.max(getParameter("operation:tolerance"), 0);
-    if (tolerance > 0) {
-      var stockToLeaveThreshold = toUnit(0.1, MM);
-      var stockToLeave = 0;
-      var verticalStockToLeave = 0;
-      if (hasParameter("operation:stockToLeave")) {
-        stockToLeave = xyzFormat.getResultingValue(getParameter("operation:stockToLeave"));
-      }
-      if (hasParameter("operation:verticalStockToLeave")) {
-        verticalStockToLeave = xyzFormat.getResultingValue(getParameter("operation:verticalStockToLeave"));
-      }
-
-      var workMode;
-      if ((stockToLeave > stockToLeaveThreshold) && (verticalStockToLeave > stockToLeaveThreshold)) {
-        workMode = 265; // roughing
+  
+  // automatically determine smoothing level
+  if (smoothing.level == 9999) {
+    if (smoothingSettings.autoLevelCriteria == "stock") { // determine auto smoothing level based on stockToLeave
+      var stockToLeave = xyzFormat.getResultingValue(getParameter("operation:stockToLeave", 0));
+      var verticalStockToLeave = xyzFormat.getResultingValue(getParameter("operation:verticalStockToLeave", 0));
+      if (((stockToLeave >= smoothingSettings.thresholdRoughing) && (verticalStockToLeave >= smoothingSettings.thresholdRoughing)) ||
+          getParameter("operation:strategy", "") == "face") {
+        smoothing.level = smoothingSettings.roughing; // set roughing level
       } else {
-        if ((stockToLeave > 0) || (verticalStockToLeave > 0)) {
-          workMode = 260; // shape accuracy
+        if (((stockToLeave >= smoothingSettings.thresholdSemiFinishing) && (stockToLeave < smoothingSettings.thresholdRoughing)) &&
+          ((verticalStockToLeave >= smoothingSettings.thresholdSemiFinishing) && (verticalStockToLeave  < smoothingSettings.thresholdRoughing))) {
+          smoothing.level = smoothingSettings.semi; // set semi level
+        } else if (((stockToLeave >= smoothingSettings.thresholdFinishing) && (stockToLeave < smoothingSettings.thresholdSemiFinishing)) &&
+          ((verticalStockToLeave >= smoothingSettings.thresholdFinishing) && (verticalStockToLeave  < smoothingSettings.thresholdSemiFinishing))) {
+          smoothing.level = smoothingSettings.semifinishing; // set semi-finishing level
         } else {
-          workMode = 262; // shape & face accuracy
+          smoothing.level = smoothingSettings.finishing; // set finishing level
         }
       }
-      writeBlock(mFormat.format(workMode)); // set tolerance mode
-    } else {
-      writeBlock(mFormat.format(265)); // high speed
+    } else { // detemine auto smoothing level based on operation tolerance instead of stockToLeave
+      if (smoothing.tolerance >= smoothingSettings.thresholdRoughing ||
+          getParameter("operation:strategy", "") == "face") {
+        smoothing.level = smoothingSettings.roughing; // set roughing level
+      } else {
+        if (((smoothing.tolerance >= smoothingSettings.thresholdSemiFinishing) && (smoothing.tolerance < smoothingSettings.thresholdRoughing))) {
+          smoothing.level = smoothingSettings.semi; // set semi level
+        } else if (((smoothing.tolerance >= smoothingSettings.thresholdFinishing) && (smoothing.tolerance < smoothingSettings.thresholdSemiFinishing))) {
+          smoothing.level = smoothingSettings.semifinishing; // set semi-finishing level
+        } else {
+          smoothing.level = smoothingSettings.finishing; // set finishing level
+        }
+      }
     }
-  } else {
-    writeBlock(mFormat.format(265)); // high speed
   }
-  return true;
+  switch (smoothingSettings.differenceCriteria) {
+  case "level":
+    smoothing.isDifferent = smoothing.level != previousLevel;
+    break;
+  case "tolerance":
+    smoothing.isDifferent = smoothing.tolerance != previousTolerance;
+    break;
+  case "both":
+    smoothing.isDifferent = smoothing.level != previousLevel || smoothing.tolerance != previousTolerance;
+    break;
+  default:
+    error(localize("Unsupported smoothing criteria."));
+    return;
+  }
+
+  if (smoothing.level == -1) { // useSmoothing is disabled
+    smoothing.isAllowed = false;
+  } else { // do not output smoothing for the following operations
+    smoothing.isAllowed = !(currentSection.getTool().type == TOOL_PROBE || currentSection.checkGroup(STRATEGY_DRILLING));
+  }
+  // tool length compensation needs to be canceled when smoothing state/level changes
+  if (smoothingSettings.cancelCompensation) {
+    smoothing.force = smoothing.isActive && smoothing.isDifferent;
+  }
 }
+
+function setSmoothing(mode) {
+  if (mode == smoothing.isActive && (!mode || !smoothing.isDifferent)) {
+    return; // return if smoothing is already active or is not different
+  }
+  if (typeof lengthCompensationActive != "undefined" && smoothingSettings.cancelCompensation) {
+    validate(!lengthCompensationActive, "Length compensation is active while trying to update smoothing.");
+  }
+  switch (getProperty("smoothingMode")) {
+  case "A":
+    writeBlock(mFormat.format(mode ? 260 + smoothing.level : 269));
+    break;
+  case "B":
+    writeBlock(mFormat.format(mode ? 280 + smoothing.level : 289));
+    break;
+  default:
+    writeBlock(mFormat.format(298), mode ? "L" + smoothing.level : "L0");
+    break;
+  }
+  smoothing.isActive = mode;
+}
+// End of smoothing logic
 
 function FeedContext(id, description, feed) {
   this.id = id;
@@ -911,10 +1014,11 @@ function onSection() {
     (!machineConfiguration.isMultiAxisConfiguration() && currentSection.isMultiAxis()) ||
     (!getPreviousSection().isMultiAxis() && currentSection.isMultiAxis() ||
       getPreviousSection().isMultiAxis() && !currentSection.isMultiAxis()); // force newWorkPlane between indexing and simultaneous operations
-  var forceSmoothing =  getProperty("useSmoothing") &&
-    (hasParameter("operation-strategy") && (getParameter("operation-strategy") == "drill") ||
-    !isFirstSection() && getPreviousSection().hasParameter("operation-strategy") && (getPreviousSection().getParameter("operation-strategy") == "drill")); // force smoothing in case !insertToolCall
-  if (insertToolCall || newWorkOffset || newWorkPlane || forceSmoothing) {
+
+  // define smoothing mode
+  initializeSmoothing();
+
+  if (insertToolCall || newWorkOffset || newWorkPlane || smoothing.isDifferent) {
     
     // stop spindle before retract during tool change
     if (insertToolCall && !isFirstSection()) {
@@ -931,8 +1035,7 @@ function onSection() {
       writeRetract(Z); // retract
       forceXYZ();
     }
-    if ((insertToolCall && !isFirstSection()) || forceSmoothing) {
-      // disableLengthCompensation(false);
+    if ((insertToolCall && !isFirstSection()) || smoothing.isDifferent) {
       setSmoothing(false);
     }
   }
@@ -1140,17 +1243,7 @@ function onSection() {
     }
   }
 
-  if (getProperty("useSmoothing")) {
-    if (hasParameter("operation-strategy") && (getParameter("operation-strategy") != "drill")) {
-      if (setSmoothing(true)) {
-        // retracted = true; // force G43
-      }
-    } else {
-      if (setSmoothing(false)) {
-        // retracted = true; // force G43
-      }
-    }
-  }
+  setSmoothing(smoothing.isAllowed);
 
   forceAny();
   gMotionModal.reset();
@@ -2934,7 +3027,6 @@ function onSectionEnd() {
   if (currentSection.isMultiAxis() && !currentSection.isOptimizedForMachine()) {
     writeBlock(gFormat.format(49));
   }
-  setSmoothing(false);
   writeBlock(gPlaneModal.format(17));
 
   if (((getCurrentSectionId() + 1) >= getNumberOfSections()) ||
@@ -3168,6 +3260,9 @@ function onClose() {
     writeBlock(gFormat.format(49));
     forceWorkPlane();
   }
+
+  setSmoothing(false);
+  
   setWorkPlane(new Vector(0, 0, 0)); // reset working plane
 
   if (useMultiAxisFeatures && (getProperty("useAAxis") || getProperty("useTrunnion"))) {
