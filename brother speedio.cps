@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 43526 066a0df7890e2e31ca7e85d5b8a1b2369ca46192 $
-  $Date: 2021-11-22 19:37:32 $
+  $Revision: 43532 953e9052f83a5e7ebe58d54b0f5357eca5369a48 $
+  $Date: 2021-11-25 13:38:02 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -228,6 +228,15 @@ properties = {
     value      : true,
     scope      : "post"
   }
+};
+
+// wcs definiton
+wcsDefinitions = {
+  useZeroOffset: false,
+  wcs          : [
+    {name:"Standard", format:"G", range:[54, 59]},
+    {name:"Extended", format:"G54.1 P", range:[1, 300]}
+  ]
 };
 
 var singleLineCoolant = false; // specifies to output multiple coolant codes in one line rather than in separate lines
@@ -1074,38 +1083,17 @@ function onSection() {
   if (insertToolCall) { // force work offset when changing tool
     currentWorkOffset = undefined;
   }
-  var workOffset = currentSection.workOffset;
-  if (workOffset == 0) {
-    warningOnce(localize("Work offset has not been specified. Using G54 as WCS."), WARNING_WORK_OFFSET);
-    workOffset = 1;
-  }
-  if (workOffset != currentWorkOffset) {
+
+  if (currentSection.workOffset != currentWorkOffset) {
     if (cancelTiltFirst) {
       cancelWorkPlane();
     }
     forceWorkPlane();
-  }
-  if (workOffset > 0) {
-    if (workOffset > 6) {
-      var p = workOffset - 6; // 1->...
-      if (p > 300) {
-        error(localize("Work offset out of range."));
-        return;
-      } else {
-        if (workOffset != currentWorkOffset) {
-          writeBlock(gFormat.format(54.1), "P" + p); // G54.1P
-          currentWorkOffset = workOffset;
-        }
-      }
-    } else {
-      if (workOffset != currentWorkOffset) {
-        writeBlock(gFormat.format(53 + workOffset)); // G54->G59
-        currentWorkOffset = workOffset;
-      }
-    }
+
+    writeBlock(currentSection.wcs);
+    currentWorkOffset = currentSection.workOffset;
   }
 
-  var scode = "";
   var abc = new Vector(0, 0, 0);
   var euler = new Vector(0, 0, 0);
   if (forceMultiAxisIndexing || !is3D() || machineConfiguration.isMultiAxisConfiguration()) { // use 5-axis indexing for multi-axis mode
