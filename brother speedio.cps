@@ -4,9 +4,9 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 43468 a53b5c5fccc97e1ca52b65656fb578fc3ad4949a $
-  $Date: 2021-10-13 15:38:26 $
-  
+  $Revision: 43526 066a0df7890e2e31ca7e85d5b8a1b2369ca46192 $
+  $Date: 2021-11-22 19:37:32 $
+
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
 
@@ -38,146 +38,146 @@ highFeedrate = (unit == IN) ? 500 : 5000;
 // user-defined properties
 properties = {
   writeMachine: {
-    title: "Write machine",
+    title      : "Write machine",
     description: "Output the machine settings in the header of the code.",
-    group: 0,
-    type: "boolean",
-    value: true,
-    scope: "post"
+    group      : 0,
+    type       : "boolean",
+    value      : true,
+    scope      : "post"
   },
   writeTools: {
-    title: "Write tool list",
+    title      : "Write tool list",
     description: "Output a tool list in the header of the code.",
-    group: 0,
-    type: "boolean",
-    value: true,
-    scope: "post"
+    group      : 0,
+    type       : "boolean",
+    value      : true,
+    scope      : "post"
   },
   preloadTool: {
-    title: "Preload tool",
+    title      : "Preload tool",
     description: "Preloads the next tool at a tool change (if any).",
-    group: 1,
-    type: "boolean",
-    value: true,
-    scope: "post"
+    group      : 1,
+    type       : "boolean",
+    value      : true,
+    scope      : "post"
   },
   showSequenceNumbers: {
-    title: "Use sequence numbers",
+    title      : "Use sequence numbers",
     description: "Use sequence numbers for each block of outputted code.",
-    group: 1,
-    type: "boolean",
-    value: true,
-    scope: "post"
+    group      : 1,
+    type       : "boolean",
+    value      : true,
+    scope      : "post"
   },
   sequenceNumberStart: {
-    title: "Start sequence number",
+    title      : "Start sequence number",
     description: "The number at which to start the sequence numbers.",
-    group: 1,
-    type: "integer",
-    value: 10,
-    scope: "post"
+    group      : 1,
+    type       : "integer",
+    value      : 10,
+    scope      : "post"
   },
   sequenceNumberIncrement: {
-    title: "Sequence number increment",
+    title      : "Sequence number increment",
     description: "The amount by which the sequence number is incremented by in each block.",
-    group: 1,
-    type: "integer",
-    value: 5,
-    scope: "post"
+    group      : 1,
+    type       : "integer",
+    value      : 5,
+    scope      : "post"
   },
   optionalStop: {
-    title: "Optional stop",
+    title      : "Optional stop",
     description: "Outputs optional stop code during when necessary in the code.",
-    type: "boolean",
-    value: true,
-    scope: "post"
+    type       : "boolean",
+    value      : true,
+    scope      : "post"
   },
   separateWordsWithSpace: {
-    title: "Separate words with space",
+    title      : "Separate words with space",
     description: "Adds spaces between words if 'yes' is selected.",
-    type: "boolean",
-    value: true,
-    scope: "post"
+    type       : "boolean",
+    value      : true,
+    scope      : "post"
   },
   useRadius: {
-    title: "Radius arcs",
+    title      : "Radius arcs",
     description: "If yes is selected, arcs are outputted using radius values rather than IJK.",
-    type: "boolean",
-    value: false,
-    scope: "post"
+    type       : "boolean",
+    value      : false,
+    scope      : "post"
   },
   useParametricFeed: {
-    title: "Parametric feed",
+    title      : "Parametric feed",
     description: "Specifies the feed value that should be output using a Q value.",
-    type: "boolean",
-    value: false,
-    scope: "post"
+    type       : "boolean",
+    value      : false,
+    scope      : "post"
   },
   showNotes: {
-    title: "Show notes",
+    title      : "Show notes",
     description: "Writes operation notes as comments in the outputted code.",
-    type: "boolean",
-    value: false,
-    scope: "post"
+    type       : "boolean",
+    value      : false,
+    scope      : "post"
   },
   useAAxis: {
-    title: "Use A-axis",
+    title      : "Use A-axis",
     description: "Specifies whether to use the A axis.",
-    type: "boolean",
-    value: false,
-    scope: "post"
+    type       : "boolean",
+    value      : false,
+    scope      : "post"
   },
   useTrunnion: {
-    title: "Use AC-trunnion",
+    title      : "Use AC-trunnion",
     description: "Enables a trunnion table with an A and C-axis.",
-    type: "boolean",
-    value: false,
-    scope: "post"
+    type       : "boolean",
+    value      : false,
+    scope      : "post"
   },
   probingType: {
-    title: "Probing type",
+    title      : "Probing type",
     description: "Specified what probing cycles are used on the machine.",
-    type: "enum",
-    values: [
-      {title: "Renishaw", id: "Renishaw"},
-      {title: "Blum", id: "Blum"}
+    type       : "enum",
+    values     : [
+      {title:"Renishaw", id:"Renishaw"},
+      {title:"Blum", id:"Blum"}
     ],
     value: "Renishaw",
     scope: "post"
   },
   washdownCoolant: {
-    title: "Washdown coolant",
+    title      : "Washdown coolant",
     description: "Specifies whether washdown coolant should be used and where it is output.",
-    type: "enum",
-    values: [
-      {title: "Off", id: "off"},
-      {title: "Always on", id: "always"},
-      {title: "End of operation", id: "operationEnd"},
-      {title: "Program end", id: "programEnd"}
+    type       : "enum",
+    values     : [
+      {title:"Off", id:"off"},
+      {title:"Always on", id:"always"},
+      {title:"End of operation", id:"operationEnd"},
+      {title:"Program end", id:"programEnd"}
     ],
     value: "off",
     scope: "post"
   },
   usePitchForTapping: {
-    title: "Use Pitch/TPI for tapping",
+    title      : "Use Pitch/TPI for tapping",
     description: "Specifies if high accuracy mode should be used.",
-    type: "boolean",
-    value: true,
-    scope: "post"
+    type       : "boolean",
+    value      : true,
+    scope      : "post"
   },
   doubleTapWithdrawSpeed: {
-    title: "Double tap withdraw speed",
+    title      : "Double tap withdraw speed",
     description: "If enabled, a L value containing double the spindle speed (up to 6000) will be output in the G77 tapping cycle.",
-    type: "boolean",
-    value: false,
-    scope: "post"
+    type       : "boolean",
+    value      : false,
+    scope      : "post"
   },
   smoothingMode: {
-    title:"High accuracy mode",
-    description:"Select the high accuracy mode supported by the control.",
-    group:2,
-    type:"enum",
-    values:[
+    title      : "High accuracy mode",
+    description: "Select the high accuracy mode supported by the control.",
+    group      : 2,
+    type       : "enum",
+    values     : [
       {title:"A", id:"A"},
       {title:"B", id:"B"},
       {title:"M298", id:"M298"}
@@ -185,11 +185,11 @@ properties = {
     value: "A"
   },
   useSmoothing: {
-    title:"High accuracy level",
-    description:"Select the high accuracy level to use for machining.",
-    group:2,
-    type:"enum",
-    values:[
+    title      : "High accuracy level",
+    description: "Select the high accuracy level to use for machining.",
+    group      : 2,
+    type       : "enum",
+    values     : [
       {title:"Off", id:"-1"},
       {title:"Automatic", id:"9999"},
       {title:"Standard", id:"0"}, // 0
@@ -202,31 +202,31 @@ properties = {
     value: "-1"
   },
   useInverseTime: {
-    title: "Use inverse time feedrates",
+    title      : "Use inverse time feedrates",
     description: "'Yes' enables inverse time feedrates, 'No' outputs DPM feedrates.",
-    type: "boolean",
-    value: false,
-    scope: "post"
+    type       : "boolean",
+    value      : false,
+    scope      : "post"
   },
   safePositionMethod: {
-    title: "Safe Retracts",
+    title      : "Safe Retracts",
     description: "Select your desired retract option. 'Clearance Height' retracts to the operation clearance height.",
-    type: "enum",
-    values: [
+    type       : "enum",
+    values     : [
       // {title:"G28", id: "G28"},
-      {title: "G53", id: "G53"},
-      {title: "Clearance Height", id: "clearanceHeight"}
+      {title:"G53", id:"G53"},
+      {title:"Clearance Height", id:"clearanceHeight"}
     ],
     value: "G53",
     scope: "post"
   },
   singleResultsFile: {
-    title: "Create single results file",
+    title      : "Create single results file",
     description: "Set to false if you want to store the measurement results for each probe / inspection toolpath in a separate file",
-    group: 0,
-    type: "boolean",
-    value: true,
-    scope: "post"
+    group      : 0,
+    type       : "boolean",
+    value      : true,
+    scope      : "post"
   }
 };
 
@@ -236,17 +236,17 @@ var singleLineCoolant = false; // specifies to output multiple coolant codes in 
 // {id: COOLANT_THROUGH_TOOL, on: [8, 88], off: [9, 89]}
 // {id: COOLANT_THROUGH_TOOL, on: "M88 P3 (myComment)", off: "M89"}
 var coolants = [
-  {id: COOLANT_FLOOD, on: 8},
-  {id: COOLANT_MIST},
-  {id: COOLANT_THROUGH_TOOL, on: 494, off: 495},
-  {id: COOLANT_AIR},
-  {id: COOLANT_AIR_THROUGH_TOOL},
-  {id: COOLANT_SUCTION},
-  {id: COOLANT_FLOOD_MIST},
-  {id: COOLANT_FLOOD_THROUGH_TOOL, on: [8, 494], off: [9, 495]},
-  {id: COOLANT_OFF, off: 9}
+  {id:COOLANT_FLOOD, on:8},
+  {id:COOLANT_MIST},
+  {id:COOLANT_THROUGH_TOOL, on:494, off:495},
+  {id:COOLANT_AIR},
+  {id:COOLANT_AIR_THROUGH_TOOL},
+  {id:COOLANT_SUCTION},
+  {id:COOLANT_FLOOD_MIST},
+  {id:COOLANT_FLOOD_THROUGH_TOOL, on:[8, 494], off:[9, 495]},
+  {id:COOLANT_OFF, off:9}
 ];
-var washdownCoolant = {on: 400, off: 401};
+var washdownCoolant = {on:400, off:401};
 
 var permittedCommentChars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,=_-";
 
@@ -267,7 +267,7 @@ var taperFormat = createFormat({decimals:1, scale:DEG});
 
 var xOutput = createVariable({prefix:"X"}, xyzFormat);
 var yOutput = createVariable({prefix:"Y"}, xyzFormat);
-var zOutput = createVariable({onchange: function() {retracted = false;}, prefix: "Z"}, xyzFormat);
+var zOutput = createVariable({onchange:function() {retracted = false;}, prefix:"Z"}, xyzFormat);
 var aOutput = createVariable({prefix:"A"}, abcFormat);
 var bOutput = createVariable({prefix:"B"}, abcFormat);
 var cOutput = createVariable({prefix:"C"}, abcFormat);
@@ -308,8 +308,8 @@ var WARNING_WORK_OFFSET = 0;
 var allowIndexingWCSProbing = false; // specifies that probe WCS with tool orientation is supported
 var probeVariables = {
   outputRotationCodes: false, // defines if it is required to output rotation codes
-  probeAngleMethod: "OFF", // OFF, AXIS_ROT, G68, G54.4
-  compensationXY: undefined
+  probeAngleMethod   : "OFF", // OFF, AXIS_ROT, G68, G54.4
+  compensationXY     : undefined
 };
 
 // collected state
@@ -400,7 +400,7 @@ function onOpen() {
   if (!machineConfiguration.isMachineCoordinate(2)) {
     cOutput.disable();
   }
-  
+
   if (!getProperty("separateWordsWithSpace")) {
     setWordSeparator("");
   }
@@ -471,7 +471,7 @@ function onOpen() {
       }
     }
   }
-  
+
   if (false) {
     // check for duplicate tool number
     for (var i = 0; i < getNumberOfSections(); ++i) {
@@ -550,27 +550,28 @@ function forceAny() {
 
 // Start of smoothing logic
 var smoothingSettings = {
-  roughing: 2, // roughing level for smoothing in automatic mode
-  semi: 3, // semi-roughing level for smoothing in automatic mode
-  semifinishing: 4, // semi-finishing level for smoothing in automatic mode
-  finishing: 5, // finishing level for smoothing in automatic mode
-  thresholdRoughing: toPreciseUnit(0.5, MM), // operations with stock/tolerance above that threshold will use roughing level in automatic mode
-  thresholdFinishing: toPreciseUnit(0.05, MM), // operations with stock/tolerance below that threshold will use finishing level in automatic mode
+  roughing              : 2, // roughing level for smoothing in automatic mode
+  semi                  : 3, // semi-roughing level for smoothing in automatic mode
+  semifinishing         : 4, // semi-finishing level for smoothing in automatic mode
+  finishing             : 5, // finishing level for smoothing in automatic mode
+  thresholdRoughing     : toPreciseUnit(0.5, MM), // operations with stock/tolerance above that threshold will use roughing level in automatic mode
+  thresholdFinishing    : toPreciseUnit(0.05, MM), // operations with stock/tolerance below that threshold will use finishing level in automatic mode
   thresholdSemiFinishing: toPreciseUnit(0.1, MM), // operations with stock/tolerance above finishing and below threshold roughing that threshold will use semi finishing level in automatic mode
-  
+
   differenceCriteria: "level", // options: "level", "tolerance", "both". Specifies criteria when output smoothing codes
-  autoLevelCriteria: "stock", // use "stock"  or "tolerance" to determine levels in automatic mode
+  autoLevelCriteria : "stock", // use "stock" or "tolerance" to determine levels in automatic mode
   cancelCompensation: false // tool length compensation must be canceled prior to changing the smoothing level
 };
 
 // collected state below, do not edit
 var smoothing = {
-  isActive: false, // the current state of smoothing
-  isAllowed: false, // smoothing is allowed for this operation
+  cancel     : false, // cancel tool length prior to update smoothing for this operation
+  isActive   : false, // the current state of smoothing
+  isAllowed  : false, // smoothing is allowed for this operation
   isDifferent: false, // tells if smoothing levels/tolerances/both are different between operations
-  level: -1, // the active level of smoothing
-  tolerance: -1, // the current operation tolerance
-  force: false // smoothing needs to be forced out in this operation
+  level      : -1, // the active level of smoothing
+  tolerance  : -1, // the current operation tolerance
+  force      : false // smoothing needs to be forced out in this operation
 };
 
 function initializeSmoothing() {
@@ -593,7 +594,6 @@ function initializeSmoothing() {
     smoothing.level = (smoothing.level >= 0 && smoothing.level <= 5) ? [0, 5, 3, 4, 1, 2][smoothing.level] : smoothing.level;
     break;
   }
-  
   // automatically determine smoothing level
   if (smoothing.level == 9999) {
     if (smoothingSettings.autoLevelCriteria == "stock") { // determine auto smoothing level based on stockToLeave
@@ -628,6 +628,16 @@ function initializeSmoothing() {
       }
     }
   }
+  if (smoothing.level == -1) { // useSmoothing is disabled
+    smoothing.isAllowed = false;
+  } else { // do not output smoothing for the following operations
+    smoothing.isAllowed = !(currentSection.getTool().type == TOOL_PROBE || currentSection.checkGroup(STRATEGY_DRILLING));
+  }
+  if (!smoothing.isAllowed) {
+    smoothing.level = -1;
+    smoothing.tolerance = -1;
+  }
+
   switch (smoothingSettings.differenceCriteria) {
   case "level":
     smoothing.isDifferent = smoothing.level != previousLevel;
@@ -643,19 +653,14 @@ function initializeSmoothing() {
     return;
   }
 
-  if (smoothing.level == -1) { // useSmoothing is disabled
-    smoothing.isAllowed = false;
-  } else { // do not output smoothing for the following operations
-    smoothing.isAllowed = !(currentSection.getTool().type == TOOL_PROBE || currentSection.checkGroup(STRATEGY_DRILLING));
-  }
   // tool length compensation needs to be canceled when smoothing state/level changes
   if (smoothingSettings.cancelCompensation) {
-    smoothing.force = smoothing.isActive && smoothing.isDifferent;
+    smoothing.cancel = !isFirstSection() && smoothing.isDifferent;
   }
 }
 
 function setSmoothing(mode) {
-  if (mode == smoothing.isActive && (!mode || !smoothing.isDifferent)) {
+  if (mode == smoothing.isActive && (!mode || !smoothing.isDifferent) && !smoothing.force) {
     return; // return if smoothing is already active or is not different
   }
   if (typeof lengthCompensationActive != "undefined" && smoothingSettings.cancelCompensation) {
@@ -673,6 +678,8 @@ function setSmoothing(mode) {
     break;
   }
   smoothing.isActive = mode;
+  smoothing.force = false;
+  smoothing.isDifferent = false;
 }
 // End of smoothing logic
 
@@ -703,7 +710,7 @@ function getFeed(f) {
 function initializeActiveFeeds() {
   activeMovements = new Array();
   var movements = currentSection.getMovements();
-  
+
   var id = 0;
   var activeFeeds = new Array();
   if (hasParameter("operation:tool_feedCutting")) {
@@ -722,7 +729,7 @@ function initializeActiveFeeds() {
     }
     ++id;
   }
-  
+
   if (hasParameter("operation:finishFeedrate")) {
     if (movements & (1 << MOVEMENT_FINISH_CUTTING)) {
       var feedContext = new FeedContext(id, localize("Finish"), getParameter("operation:finishFeedrate"));
@@ -738,7 +745,7 @@ function initializeActiveFeeds() {
     }
     ++id;
   }
-  
+
   if (hasParameter("operation:tool_feedEntry")) {
     if (movements & (1 << MOVEMENT_LEAD_IN)) {
       var feedContext = new FeedContext(id, localize("Entry"), getParameter("operation:tool_feedEntry"));
@@ -774,7 +781,7 @@ function initializeActiveFeeds() {
     }
     ++id;
   }
-  
+
   /*
   if (hasParameter("operation:reducedFeedrate")) {
     if (movements & (1 << MOVEMENT_REDUCED)) {
@@ -820,7 +827,7 @@ function initializeActiveFeeds() {
     }
     ++id;
   }
-  
+
   for (var i = 0; i < activeFeeds.length; ++i) {
     var feedContext = activeFeeds[i];
     writeBlock("#" + (firstFeedParameter + feedContext.id) + "=" + feedFormat.format(feedContext.feed), formatComment(feedContext.description));
@@ -919,7 +926,7 @@ function setWorkPlane(abc) {
       );
     }
   }
-  
+
   onCommand(COMMAND_LOCK_MULTI_AXIS);
 
   currentWorkPlaneABC = abc;
@@ -941,7 +948,7 @@ function getWorkPlaneMachineABC(workPlane, _setWorkPlane, rotate) {
   } else {
     abc = machineConfiguration.getPreferredABC(abc);
   }
-  
+
   try {
     abc = machineConfiguration.remapABC(abc);
     if (_setWorkPlane) {
@@ -955,12 +962,12 @@ function getWorkPlaneMachineABC(workPlane, _setWorkPlane, rotate) {
       + conditional(machineConfiguration.isMachineCoordinate(2), " C" + abcFormat.format(abc.z))
     );
   }
-  
+
   var direction = machineConfiguration.getDirection(abc);
   if (!isSameDirection(direction, W.forward)) {
     error(localize("Orientation not supported."));
   }
-  
+
   if (!machineConfiguration.isABCSupported(abc)) {
     error(
       localize("Work plane is not supported") + ":"
@@ -980,7 +987,7 @@ function getWorkPlaneMachineABC(workPlane, _setWorkPlane, rotate) {
       setRotation(R);
     }
   }
-  
+
   return abc;
 }
 
@@ -1003,7 +1010,7 @@ function onSection() {
   var insertToolCall = forceToolAndRetract || isFirstSection() ||
     currentSection.getForceToolChange && currentSection.getForceToolChange() ||
     (tool.number != getPreviousSection().getTool().number);
-  
+
   retracted = false;
   var newWorkOffset = isFirstSection() ||
     (getPreviousSection().workOffset != currentSection.workOffset); // work offset changes
@@ -1019,7 +1026,6 @@ function onSection() {
   initializeSmoothing();
 
   if (insertToolCall || newWorkOffset || newWorkPlane || smoothing.isDifferent) {
-    
     // stop spindle before retract during tool change
     if (insertToolCall && !isFirstSection()) {
       onCommand(COMMAND_STOP_SPINDLE);
@@ -1029,7 +1035,7 @@ function onSection() {
         cancelWorkPlane();
       }
     }
-    
+
     if (!insertToolCall && (newWorkOffset || newWorkPlane)) {
       // retract to safe plane
       writeRetract(Z); // retract
@@ -1048,7 +1054,7 @@ function onSection() {
       writeComment(comment);
     }
   }
-  
+
   if (getProperty("showNotes") && hasParameter("notes")) {
     var notes = getParameter("notes");
     if (notes) {
@@ -1140,10 +1146,10 @@ function onSection() {
   }
 
   var start = getFramePosition(currentSection.getInitialPosition());
-  
+
   if (insertToolCall) {
     forceWorkPlane();
-    
+
     setCoolant(COOLANT_OFF);
 
     if (!isFirstSection() && getProperty("optionalStop")) {
@@ -1153,7 +1159,7 @@ function onSection() {
     if (tool.number > 99) {
       warning(localize("Tool number exceeds maximum value."));
     }
-  
+
     writeBlock(gFormat.format(100),
       "T" + toolFormat.format(tool.number),
       conditional(!useMultiAxisFeatures, xOutput.format(start.x)),
@@ -1267,7 +1273,7 @@ function onSection() {
     }
 
     writeBlock(gPlaneModal.format(17));
-    
+
     if (!machineConfiguration.isHeadConfiguration()) {
       writeBlock(
         gAbsIncModal.format(90),
@@ -2427,9 +2433,9 @@ function getMultiaxisFeed(_x, _y, _z, _a, _b, _c, feed) {
     error(localize("Feedrate is less than or equal to 0."));
     return f;
   }
-  
+
   var length = getMoveLength(_x, _y, _z, _a, _b, _c);
-  
+
   if (getProperty("useInverseTime")) { // inverse time
     f.frn = getInverseTime(length.tool, feed);
     f.fmode = 93;
@@ -2449,7 +2455,7 @@ function getOptimizedMode() {
   // return (currentSection.getOptimizedTCPMode() != 0); // TAG:doesn't return correct value
   return true; // always return false for non-TCP based heads
 }
-  
+
 /** Calculate the DPM feedrate number. */
 function getFeedDPM(_moveLength, _feed) {
   if ((_feed == 0) || (_moveLength.tool < 0.0001) || (toDeg(_moveLength.abcLength) < 0.0005)) {
@@ -2560,7 +2566,7 @@ function getRotaryRadius(axis, toolPosition, abc) {
   }
   return radius;
 }
-  
+
 /** Calculate the linear distance based on the rotation of a rotary axis. */
 function getRadialDistance(radius, startABC, endABC) {
   // calculate length of radial move
@@ -2571,7 +2577,7 @@ function getRadialDistance(radius, startABC, endABC) {
   var radialLength = (2 * Math.PI * radius) * (delta / (2 * Math.PI));
   return radialLength;
 }
-  
+
 /** Calculate tooltip, XYZ, and rotary move lengths. */
 function getMoveLength(_x, _y, _z, _a, _b, _c) {
   // get starting and ending positions
@@ -2587,7 +2593,7 @@ function getMoveLength(_x, _y, _z, _a, _b, _c) {
     startABC = getCurrentDirection();
   }
   var endABC = new Vector(_a, _b, _c);
-    
+
   if (!getOptimizedMode()) { // calculate XYZ from tool tip
     startTool = getCurrentPosition();
     endTool = new Vector(_x, _y, _z);
@@ -2634,14 +2640,14 @@ function getMoveLength(_x, _y, _z, _a, _b, _c) {
 
   // calculate radii
   moveLength.radius = getRotaryRadii(startTool, endTool, startABC, endABC);
-  
+
   // calculate the radial portion of the tool tip movement
   var radialLength = Math.sqrt(
     Math.pow(getRadialDistance(moveLength.radius.x, startABC.x, endABC.x), 2.0) +
     Math.pow(getRadialDistance(moveLength.radius.y, startABC.y, endABC.y), 2.0) +
     Math.pow(getRadialDistance(moveLength.radius.z, startABC.z, endABC.z), 2.0)
   );
-  
+
   // calculate the tool tip move length
   // tool tip distance is the move distance based on a combination of linear and rotary axes movement
   moveLength.tool = moveLength.xyzLength + radialLength;
@@ -2723,7 +2729,7 @@ function isRewindAngleValid(_a, _b, _c) {
     );
     return false;
   }
-  
+
   // make sure angles are within the limits of the machine
   var abc = new Array(_a, _b, _c);
   var ix = machineConfiguration.getAxisU().getCoordinate();
@@ -2746,22 +2752,22 @@ function isRewindAngleValid(_a, _b, _c) {
     );
     return false;
   }
-  
+
   return true;
 }
 
 function onRewindMachine(_a, _b, _c) {
-  
+
   if (!performRewinds) {
     error(localize("REWIND: Rewind of machine is required for simultaneous multi-axis toolpath and has been disabled."));
     return;
   }
-  
+
   // Allow user to override rewind logic
   if (onRewindMachineEntry(_a, _b, _c)) {
     return;
   }
-  
+
   // Determine if input angles are valid or will cause a crash
   if (!isRewindAngleValid(_a, _b, _c)) {
     error(
@@ -2770,7 +2776,7 @@ function onRewindMachine(_a, _b, _c) {
     );
     return;
   }
-  
+
   // Work with the tool end point
   if (currentSection.getOptimizedTCPMode() == 0) {
     currentTool = getCurrentPosition();
@@ -2779,7 +2785,7 @@ function onRewindMachine(_a, _b, _c) {
   }
   var currentABC = getCurrentDirection();
   var currentDirection = machineConfiguration.getDirection(currentABC);
-  
+
   // Calculate the retract position
   var retractPosition = getRetractPosition(currentTool, currentDirection);
 
@@ -2801,7 +2807,7 @@ function onRewindMachine(_a, _b, _c) {
     position = machineConfiguration.getOrientation(getCurrentDirection()).getTransposed().multiply(retractPosition);
   }
   onExpandedLinear(position.x, position.y, position.z, safeRetractFeed);
-  
+
   //Position to safe machine position for rewinding axes
   moveToSafeRetractPosition(false);
 
@@ -2978,13 +2984,13 @@ function getCoolantCodes(coolant) {
 }
 
 var mapCommand = {
-  COMMAND_STOP:0,
-  COMMAND_OPTIONAL_STOP:1,
-  COMMAND_END:2,
-  COMMAND_SPINDLE_CLOCKWISE:3,
-  COMMAND_SPINDLE_COUNTERCLOCKWISE:4,
-  COMMAND_STOP_SPINDLE:5,
-  COMMAND_ORIENTATE_SPINDLE:19
+  COMMAND_STOP                    : 0,
+  COMMAND_OPTIONAL_STOP           : 1,
+  COMMAND_END                     : 2,
+  COMMAND_SPINDLE_CLOCKWISE       : 3,
+  COMMAND_SPINDLE_COUNTERCLOCKWISE: 4,
+  COMMAND_STOP_SPINDLE            : 5,
+  COMMAND_ORIENTATE_SPINDLE       : 19
 };
 
 function onCommand(command) {
@@ -3009,7 +3015,7 @@ function onCommand(command) {
   case COMMAND_TOOL_MEASURE:
     return;
   }
-  
+
   var stringId = getCommandStringId(command);
   var mcode = mapCommand[stringId];
   if (mcode != undefined) {
@@ -3262,7 +3268,6 @@ function onClose() {
   }
 
   setSmoothing(false);
-  
   setWorkPlane(new Vector(0, 0, 0)); // reset working plane
 
   if (useMultiAxisFeatures && (getProperty("useAAxis") || getProperty("useTrunnion"))) {
