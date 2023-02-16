@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 43667 2be33914e72e06bef6142892f9a4d7084de57510 $
-  $Date: 2022-02-28 17:55:49 $
+  $Revision: 43727 1654000cf4b49699c85c4609a7371d9af234b038 $
+  $Date: 2022-03-29 15:59:01 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -40,7 +40,7 @@ properties = {
   writeMachine: {
     title      : "Write machine",
     description: "Output the machine settings in the header of the code.",
-    group      : 0,
+    group      : "formats",
     type       : "boolean",
     value      : true,
     scope      : "post"
@@ -48,7 +48,7 @@ properties = {
   writeTools: {
     title      : "Write tool list",
     description: "Output a tool list in the header of the code.",
-    group      : 0,
+    group      : "formats",
     type       : "boolean",
     value      : true,
     scope      : "post"
@@ -56,7 +56,7 @@ properties = {
   preloadTool: {
     title      : "Preload tool",
     description: "Preloads the next tool at a tool change (if any).",
-    group      : 1,
+    group      : "preferences",
     type       : "boolean",
     value      : true,
     scope      : "post"
@@ -64,7 +64,7 @@ properties = {
   showSequenceNumbers: {
     title      : "Use sequence numbers",
     description: "Use sequence numbers for each block of outputted code.",
-    group      : 1,
+    group      : "formats",
     type       : "boolean",
     value      : true,
     scope      : "post"
@@ -72,7 +72,7 @@ properties = {
   sequenceNumberStart: {
     title      : "Start sequence number",
     description: "The number at which to start the sequence numbers.",
-    group      : 1,
+    group      : "formats",
     type       : "integer",
     value      : 10,
     scope      : "post"
@@ -80,7 +80,7 @@ properties = {
   sequenceNumberIncrement: {
     title      : "Sequence number increment",
     description: "The amount by which the sequence number is incremented by in each block.",
-    group      : 1,
+    group      : "formats",
     type       : "integer",
     value      : 5,
     scope      : "post"
@@ -88,6 +88,7 @@ properties = {
   optionalStop: {
     title      : "Optional stop",
     description: "Outputs optional stop code during when necessary in the code.",
+    group      : "preferences",
     type       : "boolean",
     value      : true,
     scope      : "post"
@@ -95,6 +96,7 @@ properties = {
   separateWordsWithSpace: {
     title      : "Separate words with space",
     description: "Adds spaces between words if 'yes' is selected.",
+    group      : "formats",
     type       : "boolean",
     value      : true,
     scope      : "post"
@@ -102,6 +104,7 @@ properties = {
   useRadius: {
     title      : "Radius arcs",
     description: "If yes is selected, arcs are outputted using radius values rather than IJK.",
+    group      : "preferences",
     type       : "boolean",
     value      : false,
     scope      : "post"
@@ -109,6 +112,7 @@ properties = {
   useParametricFeed: {
     title      : "Parametric feed",
     description: "Specifies the feed value that should be output using a Q value.",
+    group      : "preferences",
     type       : "boolean",
     value      : false,
     scope      : "post"
@@ -116,13 +120,15 @@ properties = {
   showNotes: {
     title      : "Show notes",
     description: "Writes operation notes as comments in the outputted code.",
+    group      : "formats",
     type       : "boolean",
     value      : false,
     scope      : "post"
   },
-  useAAxis: {
+  hasAAxis: {
     title      : "Use A-axis",
     description: "Specifies whether to use the A axis.",
+    group      : "configuration",
     type       : "boolean",
     value      : false,
     scope      : "post"
@@ -130,6 +136,7 @@ properties = {
   useTrunnion: {
     title      : "Use AC-trunnion",
     description: "Enables a trunnion table with an A and C-axis.",
+    group      : "configuration",
     type       : "boolean",
     value      : false,
     scope      : "post"
@@ -137,6 +144,7 @@ properties = {
   probingType: {
     title      : "Probing type",
     description: "Specified what probing cycles are used on the machine.",
+    group      : "probing",
     type       : "enum",
     values     : [
       {title:"Renishaw", id:"Renishaw"},
@@ -148,6 +156,7 @@ properties = {
   washdownCoolant: {
     title      : "Washdown coolant",
     description: "Specifies whether washdown coolant should be used and where it is output.",
+    group      : "preferences",
     type       : "enum",
     values     : [
       {title:"Off", id:"off"},
@@ -161,6 +170,7 @@ properties = {
   usePitchForTapping: {
     title      : "Use Pitch/TPI for tapping",
     description: "Enables the use of pitch and threads per inch instead of feed for tapping cycles.",
+    group      : "preferences",
     type       : "boolean",
     value      : true,
     scope      : "post"
@@ -168,6 +178,7 @@ properties = {
   doubleTapWithdrawSpeed: {
     title      : "Double tap withdraw speed",
     description: "If enabled, a L value containing double the spindle speed (up to 6000) will be output in the G77 tapping cycle.",
+    group      : "preferences",
     type       : "boolean",
     value      : false,
     scope      : "post"
@@ -175,7 +186,7 @@ properties = {
   smoothingMode: {
     title      : "High accuracy mode",
     description: "Select the high accuracy mode supported by the control.",
-    group      : 2,
+    group      : "preferences",
     type       : "enum",
     values     : [
       {title:"A", id:"A"},
@@ -187,7 +198,7 @@ properties = {
   useSmoothing: {
     title      : "High accuracy level",
     description: "Select the high accuracy level to use for machining.",
-    group      : 2,
+    group      : "preferences",
     type       : "enum",
     values     : [
       {title:"Off", id:"-1"},
@@ -204,6 +215,7 @@ properties = {
   useInverseTime: {
     title      : "Use inverse time feedrates",
     description: "'Yes' enables inverse time feedrates, 'No' outputs DPM feedrates.",
+    group      : "preferences",
     type       : "boolean",
     value      : false,
     scope      : "post"
@@ -211,6 +223,7 @@ properties = {
   safePositionMethod: {
     title      : "Safe Retracts",
     description: "Select your desired retract option. 'Clearance Height' retracts to the operation clearance height.",
+    group      : "homePositions",
     type       : "enum",
     values     : [
       // {title:"G28", id: "G28"},
@@ -223,7 +236,7 @@ properties = {
   singleResultsFile: {
     title      : "Create single results file",
     description: "Set to false if you want to store the measurement results for each probe / inspection toolpath in a separate file",
-    group      : 0,
+    group      : "probing",
     type       : "boolean",
     value      : true,
     scope      : "post"
@@ -392,7 +405,7 @@ function onOpen() {
 
     setMachineConfiguration(machineConfiguration);
     optimizeMachineAngles2(1); // TCP mode disabled
-  } else if (getProperty("useAAxis")) { // note: setup your machine here
+  } else if (getProperty("hasAAxis")) { // note: setup your machine here
     var aAxis = createAxis({coordinate:0, table:true, axis:[1, 0, 0], range:[-360, 360], preference:1});
     machineConfiguration = new MachineConfiguration(aAxis);
 
@@ -897,7 +910,7 @@ function setWorkPlane(abc) {
   onCommand(COMMAND_UNLOCK_MULTI_AXIS);
 
   if (!retracted) {
-    if (!getProperty("useAAxis") && !getProperty("useTrunnion")) {
+    if (!getProperty("hasAAxis") && !getProperty("useTrunnion")) {
       writeRetract(Z);
     }
   }
@@ -1153,7 +1166,7 @@ function onSection() {
       conditional(!useMultiAxisFeatures, yOutput.format(start.y)),
       gFormat.format(43),
       conditional(!useMultiAxisFeatures, zOutput.format(start.z)),
-      (((getProperty("useAAxis") || getProperty("useTrunnion")) && abc) ? aOutput.format(abc.x) : undefined),
+      (((getProperty("hasAAxis") || getProperty("useTrunnion")) && abc) ? aOutput.format(abc.x) : undefined),
       ((getProperty("useTrunnion") && abc) ? cOutput.format(abc.z) : undefined),
       conditional(!useMultiAxisFeatures, hFormat.format(tool.lengthOffset)),
       conditional(tool.type != TOOL_PROBE, dFormat.format(tool.diameterOffset)),
@@ -1209,7 +1222,7 @@ function onSection() {
     forceXYZ();
   }
 
-  if (!currentSection.isMultiAxis() && (getProperty("useAAxis") || getProperty("useTrunnion"))) {
+  if (!currentSection.isMultiAxis() && (getProperty("hasAAxis") || getProperty("useTrunnion"))) {
     if (!useMultiAxisFeatures) {
       setWorkPlane(abc);
     } else {
@@ -3267,7 +3280,7 @@ function onClose() {
   setSmoothing(false);
   setWorkPlane(new Vector(0, 0, 0)); // reset working plane
 
-  if (useMultiAxisFeatures && (getProperty("useAAxis") || getProperty("useTrunnion"))) {
+  if (useMultiAxisFeatures && (getProperty("hasAAxis") || getProperty("useTrunnion"))) {
     writeBlock(
       gAbsIncModal.format(91), gFormat.format(28),
       conditional(machineConfiguration.isMachineCoordinate(0), "A" + abcFormat.format(0)),
