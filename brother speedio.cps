@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 43847 a61bbf0dc07c61b976d0931aee1c2ec84c19334c $
-  $Date: 2022-06-21 14:13:39 $
+  $Revision: 43917 137901004ca7b899eabfc93d41f02b60143d09bb $
+  $Date: 2022-08-17 18:54:31 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -678,10 +678,10 @@ function initializeSmoothing() {
     smoothing.isDifferent = smoothing.level != previousLevel;
     break;
   case "tolerance":
-    smoothing.isDifferent = smoothing.tolerance != previousTolerance;
+    smoothing.isDifferent = xyzFormat.areDifferent(smoothing.tolerance, previousTolerance);
     break;
   case "both":
-    smoothing.isDifferent = smoothing.level != previousLevel || smoothing.tolerance != previousTolerance;
+    smoothing.isDifferent = smoothing.level != previousLevel || xyzFormat.areDifferent(smoothing.tolerance, previousTolerance);
     break;
   default:
     error(localize("Unsupported smoothing criteria."));
