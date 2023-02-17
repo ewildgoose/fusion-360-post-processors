@@ -3032,6 +3032,17 @@ function onCommand(command) {
   case COMMAND_STOP_CHIP_TRANSPORT:
     return;
   case COMMAND_BREAK_CONTROL:
+    writeln("");
+    writeComment("Performing tool break detection");
+    setCoolant(COOLANT_OFF);
+    onCommand(COMMAND_STOP_SPINDLE);
+    if (getProperty("probingType") == "Renishaw") {
+      // Unclear if this is the correct code for Renishaw? Please test and feedback
+      // FIXME: Might need a tool number specifying explicitly?
+      writeBlock(gFormat.format(65), "P" + 8921, "M23.", "C0.");
+    } else {
+      writeBlock(gFormat.format(65), "P" + 8915, "B2");
+    }
     return;
   case COMMAND_TOOL_MEASURE:
     return;
@@ -3058,7 +3069,9 @@ function onSectionEnd() {
 
   if (((getCurrentSectionId() + 1) >= getNumberOfSections()) ||
       (tool.number != getNextSection().getTool().number)) {
-    onCommand(COMMAND_BREAK_CONTROL);
+    // should we check for tool breakage?
+    if (tool.breakControl)
+      onCommand(COMMAND_BREAK_CONTROL);
   }
 
   if (tool.type != TOOL_PROBE && getProperty("washdownCoolant") == "operationEnd") {
