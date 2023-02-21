@@ -374,6 +374,8 @@ var currentFeedId;
 var retracted = false; // specifies that the tool has been retracted to the safe plane
 var measureTool = false;
 probeMultipleFeatures = true;
+var jobDescription = "";
+var firstNote = true; // handles output of notes from multiple setups
 
 /**
   Writes the specified block.
@@ -435,6 +437,21 @@ function writeToolBlock() {
 */
 function writeComment(text) {
   writeln(formatComment(text));
+}
+
+// Format and write a multiline text string as a comment
+function writeNotes(text) {
+  if (text) {
+    var lines = String(text).split("\n");
+    var r1 = new RegExp("^[\\s]+", "g");
+    var r2 = new RegExp("[\\s]+$", "g");
+    for (line in lines) {
+      var comment = lines[line].replace(r1, "").replace(r2, "");
+      if (comment) {
+        writeComment(comment);
+      }
+    }
+  }
 }
 
 function prepareForToolCheck() {
@@ -521,6 +538,12 @@ function onOpen() {
     return;
   }
 
+  // Any job notes
+  if (getProperty("showNotes")) {
+    writeSetupNotes();
+    writeln("");
+  }
+
   // dump machine configuration
   var vendor = machineConfiguration.getVendor();
   var model = machineConfiguration.getModel();
@@ -572,6 +595,7 @@ function onOpen() {
         comment += " - " + getToolTypeName(tool.type);
         writeComment(comment);
       }
+      writeln("");
     }
   }
 
@@ -657,6 +681,27 @@ function onComment(message) {
   var comments = String(message).split(";");
   for (comment in comments) {
     writeComment(comments[comment]);
+  }
+}
+
+function onParameter(name, value) {
+  switch (name) {
+  case "job-description":
+    // Record updated param so that we can print it in the section break
+    jobDescription = value
+    break;
+  case "job-notes":
+    // Don't output on the very first section, handled by onStart()
+    if (!firstNote && getProperty("showNotes") ) {
+      // FIXME: This assumes that job-description gets set before job-notes
+      writeln("");
+      writeNotes("Setup. " + jobDescription);
+      writeNotes(value);
+    }
+    firstNote = false;
+    break;
+  default:
+    break;
   }
 }
 
@@ -1173,6 +1218,7 @@ function onSection() {
   }
 
   if (getProperty("showNotes") && hasParameter("notes")) {
+//    writeSectionNotes();
     var notes = getParameter("notes");
     if (notes) {
       var lines = String(notes).split("\n");
