@@ -420,6 +420,11 @@ function writeComment(text) {
   writeln(formatComment(text));
 }
 
+function prepareForToolCheck() {
+  setCoolant(COOLANT_OFF);
+  onCommand(COMMAND_STOP_SPINDLE);
+}
+
 function onOpen() {
   if (getProperty("useRadius")) {
     maximumCircularSweep = toRad(90); // avoid potential center calculation errors for CNC
@@ -1140,6 +1145,11 @@ function onSection() {
       return;
     }
     setRotation(remaining);
+  }
+
+  if (toolChecked) {
+    forceSpindleSpeed = true; // spindle must be restarted if tool is checked without a tool change
+    toolChecked = false; // state of tool is not known at the beginning of a section since it could be broken for the previous section
   }
 
   var spindleChanged = tool.type != TOOL_PROBE &&
@@ -3032,16 +3042,23 @@ function onCommand(command) {
   case COMMAND_STOP_CHIP_TRANSPORT:
     return;
   case COMMAND_BREAK_CONTROL:
-    writeln("");
-    writeComment("Performing tool break detection");
-    setCoolant(COOLANT_OFF);
-    onCommand(COMMAND_STOP_SPINDLE);
-    if (getProperty("probingType") == "Renishaw") {
-      // Unclear if this is the correct code for Renishaw? Please test and feedback
-      // FIXME: Might need a tool number specifying explicitly?
-      writeBlock(gFormat.format(65), "P" + 8921, "M23.", "C0.");
-    } else {
-      writeBlock(gFormat.format(65), "P" + 8915, "B2");
+    if (!toolChecked) { // avoid duplicate COMMAND_BREAK_CONTROL
+      writeln("");
+      writeComment("Performing tool break detection");
+      prepareForToolCheck();
+      if (getProperty("probingType") == "Renishaw") {
+        // Unclear if this is the correct code for Renishaw? Please test and feedback
+        writeBlock(
+          gFormat.format(65),
+          "P" + 8921,
+          "M23.",
+          "C0.",
+          "T" + toolFormat.format(tool.number));
+      } else {
+        writeBlock(gFormat.format(65), "P" + 8915, "B2");
+      }
+      toolChecked = true;
+      lengthCompensationActive = false; // Tool check macros cancel tool length compensation
     }
     return;
   case COMMAND_TOOL_MEASURE:
@@ -3057,6 +3074,8 @@ function onCommand(command) {
   }
 }
 
+var toolChecked = false; // specifies that the tool has been checked with the probe
+
 function onSectionEnd() {
   if (currentSection.isMultiAxis()) {
     writeBlock(gFeedModeModal.format(94)); // inverse time feed off
@@ -3067,11 +3086,12 @@ function onSectionEnd() {
   }
   writeBlock(gPlaneModal.format(17));
 
-  if (((getCurrentSectionId() + 1) >= getNumberOfSections()) ||
-      (tool.number != getNextSection().getTool().number)) {
-    // should we check for tool breakage?
-    if (tool.breakControl)
-      onCommand(COMMAND_BREAK_CONTROL);
+  if ((((getCurrentSectionId() + 1) >= getNumberOfSections()) ||
+      (tool.number != getNextSection().getTool().number)) &&
+      tool.breakControl) {
+    onCommand(COMMAND_BREAK_CONTROL);
+  } else {
+    toolChecked = false;
   }
 
   if (tool.type != TOOL_PROBE && getProperty("washdownCoolant") == "operationEnd") {
