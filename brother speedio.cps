@@ -302,7 +302,7 @@ var coolants = [
 ];
 var washdownCoolant = {on:400, off:401};
 
-var permittedCommentChars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,=_-";
+var permittedCommentChars = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\"#$&'*+.,;/@<=>?_-[]{}";
 
 var gFormat = createFormat({prefix:"G", width:2, zeropad:true, decimals:1});
 var mFormat = createFormat({prefix:"M", width:2, zeropad:true, decimals:1});
