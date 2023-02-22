@@ -1309,6 +1309,13 @@ function onSection() {
       warning(localize("Tool number exceeds maximum value."));
     }
 
+    var coolantCodes = getCoolantCodes(tool.coolant);
+    if (Array.isArray(coolantCodes)) {
+      coolantCodes = coolantCodes.join(getWordSeparator());
+    } else{
+      coolantCodes = "";
+    }
+
     writeToolBlock(gFormat.format(100),
       "T" + toolFormat.format(tool.number),
       conditional(!useMultiAxisFeatures, xOutput.format(start.x)),
@@ -1320,7 +1327,8 @@ function onSection() {
       conditional(!useMultiAxisFeatures, hFormat.format(tool.lengthOffset)),
       conditional(tool.type != TOOL_PROBE, dFormat.format(tool.diameterOffset)),
       conditional(tool.type != TOOL_PROBE, sOutput.format(spindleSpeed)),
-      conditional(tool.type != TOOL_PROBE, mFormat.format(tool.clockwise ? 3 : 4))
+      conditional(tool.type != TOOL_PROBE, mFormat.format(tool.clockwise ? 3 : 4)),
+      coolantCodes
     );
     forceSpindleSpeed = false;
 
@@ -1389,16 +1397,18 @@ function onSection() {
   }
   setProbeAngle(); // output probe angle rotations if required
 
-  // set coolant after we have positioned at Z
-  setCoolant(tool.coolant);
-  // add dwell for through coolant if needed
-  if (tool.coolant == COOLANT_THROUGH_TOOL || tool.coolant == COOLANT_AIR_THROUGH_TOOL || tool.coolant == COOLANT_FLOOD_THROUGH_TOOL) {
-    if (isFirstSection()) {
-      onDwell(1);
-    } else {
-      var lastCoolant = getPreviousSection().getTool().coolant;
-      if (!(lastCoolant == COOLANT_THROUGH_TOOL || lastCoolant == COOLANT_AIR_THROUGH_TOOL || lastCoolant == COOLANT_FLOOD_THROUGH_TOOL)) {
+  if (!insertToolCall) {
+    // set coolant after we have positioned at Z
+    setCoolant(tool.coolant);
+    // add dwell for through coolant if needed
+    if (tool.coolant == COOLANT_THROUGH_TOOL || tool.coolant == COOLANT_AIR_THROUGH_TOOL || tool.coolant == COOLANT_FLOOD_THROUGH_TOOL) {
+      if (isFirstSection()) {
         onDwell(1);
+      } else {
+        var lastCoolant = getPreviousSection().getTool().coolant;
+        if (!(lastCoolant == COOLANT_THROUGH_TOOL || lastCoolant == COOLANT_AIR_THROUGH_TOOL || lastCoolant == COOLANT_FLOOD_THROUGH_TOOL)) {
+          onDwell(1);
+        }
       }
     }
   }
