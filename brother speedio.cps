@@ -1190,7 +1190,6 @@ function onSection() {
   if (insertToolCall || newWorkOffset || newWorkPlane || smoothing.isDifferent) {
     // stop spindle before retract during tool change
     if (insertToolCall && !isFirstSection()) {
-      onCommand(COMMAND_STOP_SPINDLE);
       if (useMultiAxisFeatures) {
         writeRetract(Z);
         writeBlock(gFormat.format(49));
