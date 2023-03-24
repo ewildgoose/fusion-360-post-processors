@@ -758,9 +758,9 @@ var smoothingSettings = {
   semi                  : 3, // semi-roughing level for smoothing in automatic mode
   semifinishing         : 4, // semi-finishing level for smoothing in automatic mode
   finishing             : 5, // finishing level for smoothing in automatic mode
-  thresholdRoughing     : toPreciseUnit(0.5, MM), // operations with stock/tolerance above that threshold will use roughing level in automatic mode
-  thresholdFinishing    : toPreciseUnit(0.05, MM), // operations with stock/tolerance below that threshold will use finishing level in automatic mode
-  thresholdSemiFinishing: toPreciseUnit(0.1, MM), // operations with stock/tolerance above finishing and below threshold roughing that threshold will use semi finishing level in automatic mode
+  thresholdRoughing     : toPreciseUnit(0.5, MM), // operations with stock/tolerance at/above that threshold will use roughing level in automatic mode
+  thresholdFinishing    : toPreciseUnit(0.05, MM), // operations with stock/tolerance at/below that threshold will use finishing level in automatic mode
+  thresholdSemiFinishing: toPreciseUnit(0.1, MM), // operations with stock/tolerance at/below that threshold (and above threshold finishing) will use semi finishing level in automatic mode
 
   differenceCriteria: "level", // options: "level", "tolerance", "both". Specifies criteria when output smoothing codes
   autoLevelCriteria : "stock", // use "stock" or "tolerance" to determine levels in automatic mode
@@ -808,29 +808,25 @@ function initializeSmoothing() {
           ((stockToLeave > 0) && (verticalStockToLeave >= smoothingSettings.thresholdRoughing))) ||
           getParameter("operation:strategy", "") == "face") {
         smoothing.level = smoothingSettings.roughing; // set roughing level
+      } else if ((stockToLeave > smoothingSettings.thresholdSemiFinishing) ||
+                ((stockToLeave > 0) && (verticalStockToLeave > smoothingSettings.thresholdSemiFinishing))) {
+        smoothing.level = smoothingSettings.semi; // set semi level
+      } else if ((stockToLeave > smoothingSettings.thresholdFinishing) ||
+                (verticalStockToLeave > smoothingSettings.thresholdFinishing)) {
+        smoothing.level = smoothingSettings.semifinishing; // set semi-finishing level
       } else {
-        if ((stockToLeave >= smoothingSettings.thresholdSemiFinishing) ||
-        ((stockToLeave > 0) && (verticalStockToLeave >= smoothingSettings.thresholdSemiFinishing))) {
-          smoothing.level = smoothingSettings.semi; // set semi level
-        } else if ((stockToLeave >= smoothingSettings.thresholdFinishing) ||
-          (verticalStockToLeave >= smoothingSettings.thresholdFinishing)) {
-          smoothing.level = smoothingSettings.semifinishing; // set semi-finishing level
-        } else {
-          smoothing.level = smoothingSettings.finishing; // set finishing level
-        }
+        smoothing.level = smoothingSettings.finishing; // set finishing level
       }
     } else { // detemine auto smoothing level based on operation tolerance instead of stockToLeave
       if (smoothing.tolerance >= smoothingSettings.thresholdRoughing ||
           getParameter("operation:strategy", "") == "face") {
         smoothing.level = smoothingSettings.roughing; // set roughing level
-      } else {
-        if (((smoothing.tolerance >= smoothingSettings.thresholdSemiFinishing) && (smoothing.tolerance < smoothingSettings.thresholdRoughing))) {
+      } else if (smoothing.tolerance > smoothingSettings.thresholdSemiFinishing) {
           smoothing.level = smoothingSettings.semi; // set semi level
-        } else if (((smoothing.tolerance >= smoothingSettings.thresholdFinishing) && (smoothing.tolerance < smoothingSettings.thresholdSemiFinishing))) {
+      } else if (smoothing.tolerance > smoothingSettings.thresholdFinishing) {
           smoothing.level = smoothingSettings.semifinishing; // set semi-finishing level
-        } else {
+      } else {
           smoothing.level = smoothingSettings.finishing; // set finishing level
-        }
       }
     }
   }
