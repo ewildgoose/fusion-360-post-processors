@@ -257,6 +257,19 @@ properties = {
     value: "G53",
     scope: "post"
   },
+  positionAtEnd: {
+    title      : "Part position at cycle end",
+    description: "'Center At Door' Moves the part in X in center under spindle at end of program. 'Home' Moves the table to the home position defined in the machine setup",
+    group      : "homePositions",
+    type       : "enum",
+    values     : [
+      {title:"Home", id:"home"},
+      {title:"No Move", id:"noMove"},
+      {title:"Center at Door", id:"centerAtDoor"}
+    ],
+    value: "home",
+    scope: "post"
+  },
   measureTools: {
     title      : "Optionally measure tools at start",
     description: "Measure each tool used at the beginning of the program when block delete is turned off.",
@@ -3312,6 +3325,7 @@ function writeRetract() {
     cancelWorkPlane(true);
   }
   // define home positions
+  var _xHomeRel;
   var _xHome;
   var _yHome;
   var _zHome;
@@ -3320,14 +3334,27 @@ function writeRetract() {
     _yHome = toPreciseUnit(0, MM);
     _zHome = toPreciseUnit(0, MM);
   } else {
-    _xHome = machineConfiguration.hasHomePositionX() ? machineConfiguration.getHomePositionX() : toPreciseUnit(0, MM);
+    if (getProperty("positionAtEnd") == "home") {
+      _xHome = machineConfiguration.hasHomePositionX() ? machineConfiguration.getHomePositionX() : toPreciseUnit(0, MM);
+    } else if (getProperty("positionAtEnd") == "centerAtDoor" &&
+                hasParameter("part-upper-x") && hasParameter("part-lower-x")) {
+      _xHomeRel = true;
+      _xHome = (getParameter("part-upper-x") + getParameter("part-lower-x"))/2;
+    } else {
+      _xHome = toPreciseUnit(0, MM);
+    }
     _yHome = machineConfiguration.hasHomePositionY() ? machineConfiguration.getHomePositionY() : toPreciseUnit(0, MM);
     _zHome = machineConfiguration.getRetractPlane() != 0 ? machineConfiguration.getRetractPlane() : toPreciseUnit(0, MM);
   }
   for (var i = 0; i < arguments.length; ++i) {
     switch (arguments[i]) {
     case X:
-      words.push("X" + xyzFormat.format(_xHome));
+      // special conditions
+      if (_xHomeRel) { // output X in standard block by itself if centering
+        writeBlock(gAbsIncModal.format(90), gMotionModal.format(0), "X" + xyzFormat.format(_xHome));
+      } else {
+        words.push("X" + xyzFormat.format(_xHome));
+      }
       xOutput.reset();
       break;
     case Y:
@@ -3482,7 +3509,11 @@ function onClose() {
     retracted = true; // tool call does a full retract along the z-axis
   }
 
-  writeRetract(X, Y);
+  // Move table to final position
+  if (getProperty("positionAtEnd") != "noMove") {
+    writeRetract(X, Y);
+  }
+
   if (useMultiAxisFeatures) {
     writeBlock(gFormat.format(49));
     forceWorkPlane();
