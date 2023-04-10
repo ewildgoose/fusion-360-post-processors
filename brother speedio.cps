@@ -211,9 +211,9 @@ properties = {
       {title:"Standard", id:"0"}, // 0
       {title:"Roughing", id:"1"}, // 5
       {title:"Medium rough", id:"2"}, // 3
-      {title:"Medium rough high", id:"3"}, // 4
+      {title:"Medium rough (S)", id:"3"}, // 4
       {title:"Finishing", id:"4"}, // 1
-      {title:"Finishing high", id:"5"} // 2
+      {title:"Finishing (S)", id:"5"} // 2
     ],
     value: "-1"
   },
@@ -831,6 +831,10 @@ function initializeSmoothing() {
     smoothingSettings.semifinishing = 1;
     smoothingSettings.finishing = 2;
     smoothing.level = (smoothing.level >= 0 && smoothing.level <= 5) ? [0, 5, 3, 4, 1, 2][smoothing.level] : smoothing.level;
+    break;
+  case "M298":
+    // Need to increment by 1 before sending to "M298 L.."
+    smoothing.level = (smoothing.level >= 0 && smoothing.level < 99) ? smoothing.level + 1 : smoothing.level;
     break;
   }
   // automatically determine smoothing level
