@@ -554,8 +554,20 @@ function onOpen() {
   // Any job notes
   if (getProperty("showNotes")) {
     writeSetupNotes();
-    writeln("");
+
+    // Write sub section notes
+    var hasNotes=false;
+    for (var i = 0; i < getNumberOfSections(); ++i) {
+      var section = getSection(i);
+      var notes = section.getParameter("notes")
+      if (notes) {
+        writeln("");
+        writeComment(section.getParameter("operation-comment"), "");
+        writeNotes(notes);
+      }
+    }
   }
+  writeln("");
 
   // dump machine configuration
   var vendor = machineConfiguration.getVendor();
