@@ -251,7 +251,8 @@ properties = {
       {title:"Stock to Leave", id:"stock"},
       {title:"Tolerance", id:"tolerance"},
     ],
-    value: "stock"
+    value      : "stock",
+    scope      : "post"
   },
   toolBreakageTolerance: {
     title      : "Tool breakage tolerance",
@@ -292,8 +293,8 @@ properties = {
       {title:"No Move", id:"noMove"},
       {title:"Center at Door", id:"centerAtDoor"}
     ],
-    value: "home",
-    scope: "post"
+    value      : "home",
+    scope      : "post"
   },
   measureTools: {
     title      : "Optionally measure tools at start",
