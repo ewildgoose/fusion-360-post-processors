@@ -228,6 +228,14 @@ properties = {
     ],
     value: "stock"
   },
+  toolBreakageTolerance: {
+    title      : "Tool breakage tolerance",
+    description: "Specifies the tolerance for which tool break detection will raise an alarm.",
+    group      : "preferences",
+    type       : "spatial",
+    value      : 0.05,
+    scope      : "post"
+  },
   useInverseTime: {
     title      : "Use inverse time feedrates",
     description: "'Yes' enables inverse time feedrates, 'No' outputs DPM feedrates.",
@@ -3050,12 +3058,18 @@ function onCommand(command) {
         // Unclear if this is the correct code for Renishaw? Please test and feedback
         writeBlock(
           gFormat.format(65),
-          "P" + 8921,
-          "M23.",
-          "C0.",
-          "T" + toolFormat.format(tool.number));
+          "P" + 8858,
+          "B1", // B1=length only, B2=diam only, B3=length and diameter
+          "H" + xyzFormat.format(getProperty("toolBreakageTolerance")),
+          "T" + toolFormat.format(tool.number)
+        );
       } else {
-        writeBlock(gFormat.format(65), "P" + 8915, "B2");
+        writeBlock(
+          gFormat.format(65),
+          "P" + 8915,
+          "B2",
+          "Q" + xyzFormat.format(getProperty("toolBreakageTolerance"))
+        );
       }
       toolChecked = true;
       lengthCompensationActive = false; // Tool check macros cancel tool length compensation
