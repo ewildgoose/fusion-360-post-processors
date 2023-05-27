@@ -304,6 +304,14 @@ properties = {
     value      : false,
     scope      : "post"
   },
+  confirmToolLengths: {
+    title      : "Confirm tool lengths",
+    description: "Ensure that the actual tool lengths are equal or longer to that specified in CAM.",
+    group      : "probing",
+    type       : "boolean",
+    value      : false,
+    scope      : "post"
+  },
   singleResultsFile: {
     title      : "Create single results file",
     description: "Set to false if you want to store the measurement results for each probe / inspection toolpath in a separate file",
@@ -689,6 +697,36 @@ function onOpen() {
       // Reload initial tool (side effect to cancel tool length offset)
       writeComment("Reload initial tool")
       writeBlock("T" + toolFormat.format(getSection(0).getTool().number), mFormat.format(6)); // get tool
+    }
+    optionalSection = false;
+    writeln("");
+  }
+
+  // optionally confirm tool lengths
+  if (getProperty("confirmToolLengths")) {
+    var toolLenBase = 11000;
+    var tools = getToolTable();
+    optionalSection = true;
+    if (tools.getNumberOfTools() > 0) {
+      writeln("");
+
+      for (var i = 0; i < tools.getNumberOfTools(); ++i) {
+        var tool = tools.getTool(i);
+        if (tool.type == TOOL_PROBE) {
+          continue;
+        }
+
+        // Compare tool table len with CAM len and stop if shorter
+        var camLen = xyzFormat.format(tool.bodyLength + tool.holderLength);
+        var tooltableLen = "#" + (toolLenBase + tool.number);
+        var seq = sequenceNumber;
+        sequenceNumber += getProperty("sequenceNumberIncrement");
+        writeComment("Checking lengths of tool: " + tool.number);
+        writeBlock("N" + seq + " IF [" + tooltableLen + " GE " + camLen + "] GOTO " + sequenceNumber);
+        writeBlock("#3006=(TOOL " + tool.number + " TOO SHORT)")
+      }
+      writeBlock("N" + sequenceNumber)
+      sequenceNumber += getProperty("sequenceNumberIncrement");
     }
     optionalSection = false;
     writeln("");
