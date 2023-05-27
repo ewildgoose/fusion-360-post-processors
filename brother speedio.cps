@@ -1376,6 +1376,9 @@ function onSection() {
     }
   }
 
+  // Do not output D, S, M3/4 during G100 for Tap/Probe operations
+  var noSpindle = isTappingCycle(currentSection) || tool.type == TOOL_PROBE;
+
   var start = getFramePosition(currentSection.getInitialPosition());
 
   if (insertToolCall) {
@@ -1407,9 +1410,9 @@ function onSection() {
       (((getProperty("hasAAxis") || getProperty("useTrunnion")) && abc) ? aOutput.format(abc.x) : undefined),
       ((getProperty("useTrunnion") && abc) ? cOutput.format(abc.z) : undefined),
       conditional(!useMultiAxisFeatures, hFormat.format(tool.lengthOffset)),
-      conditional(tool.type != TOOL_PROBE, dFormat.format(tool.diameterOffset)),
-      conditional(tool.type != TOOL_PROBE, sOutput.format(spindleSpeed)),
-      conditional(tool.type != TOOL_PROBE, mFormat.format(tool.clockwise ? 3 : 4)),
+      conditional(!noSpindle, dFormat.format(tool.diameterOffset)),
+      conditional(!noSpindle, sOutput.format(spindleSpeed)),
+      conditional(!noSpindle, mFormat.format(tool.clockwise ? 3 : 4)),
       coolantCodes
     );
     forceSpindleSpeed = false;
@@ -1791,6 +1794,7 @@ function onCyclePoint(x, y, z) {
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
           conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitchMM)),
+          sOutput.format(spindleSpeed),
           conditional(getProperty("doubleTapWithdrawSpeed"), "L" + rpmFormat.format(spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
         );
       } else {
@@ -1798,6 +1802,7 @@ function onCyclePoint(x, y, z) {
           gRetractModal.format(98), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 84),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           "P" + secFormat.format(P),
+          sOutput.format(spindleSpeed),
           cyclefeedOutput.format(F)
         );
       }
@@ -1812,6 +1817,7 @@ function onCyclePoint(x, y, z) {
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
           conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitchMM)),
+          sOutput.format(spindleSpeed),
           conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
         );
       } else {
@@ -1819,7 +1825,8 @@ function onCyclePoint(x, y, z) {
           gRetractModal.format(98), gCycleModal.format(74),
           getCommonCycle(x, y, z, cycle.retract),
           "P" + secFormat.format(P),
-          cyclefeedOutput.format(F)
+          cyclefeedOutput.format(F),
+          sOutput.format(spindleSpeed)
         );
       }
       break;
@@ -1833,6 +1840,7 @@ function onCyclePoint(x, y, z) {
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
           conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitchMM)),
+          sOutput.format(spindleSpeed),
           conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
         );
       } else {
@@ -1840,7 +1848,8 @@ function onCyclePoint(x, y, z) {
           gRetractModal.format(98), gCycleModal.format(84),
           getCommonCycle(x, y, z, cycle.retract),
           "P" + secFormat.format(P),
-          cyclefeedOutput.format(F)
+          cyclefeedOutput.format(F),
+          sOutput.format(spindleSpeed)
         );
       }
       break;
@@ -1861,6 +1870,7 @@ function onCyclePoint(x, y, z) {
             "Q" + xyzFormat.format(cycle.incrementalDepth),
             conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
             conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitchMM)),
+            sOutput.format(spindleSpeed),
             conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
           );
         } else { // G84/G74 does not support chip breaking
