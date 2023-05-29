@@ -8,6 +8,11 @@
   $Date: 2023-07-17 12:38:58 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
+
+  NOTES:
+  It's essential that you change:
+  - "User Param Switch 1": 0053 (Multiple M codes in one block) to true.
+    This allows the G100 tool change to start spindle + start coolant
 */
 
 description = "Brother Speedio";
