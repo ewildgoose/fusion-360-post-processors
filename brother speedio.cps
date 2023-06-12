@@ -1454,7 +1454,10 @@ function onSection() {
       }
     }
   } else if (spindleChanged) {
-    writeBlock(sOutput.format(spindleSpeed));
+    writeBlock(
+      conditional(!noSpindle, sOutput.format(spindleSpeed)),
+      conditional(!noSpindle, mFormat.format(tool.clockwise ? 3 : 4))
+    );
     forceSpindleSpeed = false;
   }
 
