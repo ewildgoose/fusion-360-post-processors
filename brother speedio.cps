@@ -135,6 +135,14 @@ properties = {
     value      : false,
     scope      : "post"
   },
+  partsCounter: {
+    title      : "Activate parts counter",
+    description: "Output M211 to activate parts counter",
+    group      : "configuration",
+    type       : "boolean",
+    value      : false,
+    scope      : "post",
+  },
   hasAAxis: {
     title      : "Use A-axis",
     description: "Specifies whether to use the A axis.",
@@ -3787,6 +3795,11 @@ function onClose() {
       writeBlock(mFormat.format(washdownCoolant.on));
     }
     writeBlock(mFormat.format(washdownCoolant.off));
+  }
+
+  if (getProperty("partsCounter")) {
+    writeComment("ACTIVATE PARTS COUNTER");
+    writeBlock("M211");
   }
 
   // reload first tool (handles retract)
