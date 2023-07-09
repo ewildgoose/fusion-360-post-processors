@@ -2305,6 +2305,21 @@ function onCommand(command) {
     return;
   case COMMAND_PROBE_OFF:
     return;
+  case COMMAND_VERIFY:
+    writeln("");
+    writeComment("Stop for verification");
+    optionalSection = true;
+    forceSpindleSpeed = true;
+    forceCoolant = true;
+    if (!state.retractedZ) {
+      writeRetract(Z);
+    }
+    if (getProperty("positionAtEnd") != "noMove") {
+      writeRetract(X, Y);
+    }
+    writeBlock(mFormat.format(0));
+    optionalSection = false;
+    return;
   }
 
   var stringId = getCommandStringId(command);
