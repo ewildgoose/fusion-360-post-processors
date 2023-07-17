@@ -787,6 +787,10 @@ function onOpen() {
   // absolute coordinates and feed per min
   writeBlock(gFormat.format(0), gAbsIncModal.format(90), gFormat.format(40), gFormat.format(80));
   writeBlock(gFeedModeModal.format(94), gFormat.format(49));
+  // Convenient to emit the WCS code for the first section
+  if (getNumberOfSections() > 0) {
+    writeBlock(getSection(0).wcs);
+  }
 
   writeComment("File output in " + (unit == 1 ? "MM" : "inches") + ". Please ensure the unit is set correctly on the control");
 }
