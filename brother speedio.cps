@@ -3915,9 +3915,9 @@ function onClose() {
   }
 
   setSmoothing(false);
-  setWorkPlane(new Vector(0, 0, 0)); // reset working plane
 
   if (useMultiAxisFeatures && (getProperty("hasAAxis") || getProperty("useTrunnion"))) {
+    setWorkPlane(new Vector(0, 0, 0)); // reset working plane
     writeBlock(
       gAbsIncModal.format(91), gFormat.format(28),
       conditional(machineConfiguration.isMachineCoordinate(0), "A" + abcFormat.format(0)),
