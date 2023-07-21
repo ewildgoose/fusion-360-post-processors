@@ -135,6 +135,14 @@ properties = {
     value      : false,
     scope      : "post"
   },
+  linearizeArcs: {
+    title      : "Linearise lead-in/out arcs",
+    description: "Linearise certain arc moves when in high accuracy mode A. Avoids machine hesitations.",
+    group      : "formats",
+    type       : "boolean",
+    value      : false,
+    scope      : "post"
+  },
   partsCounter: {
     title      : "Activate parts counter",
     description: "Output M211 to activate parts counter",
@@ -3405,11 +3413,21 @@ function onCircular(clockwise, cx, cy, cz, x, y, z, feed) {
     return;
   }
 
+  var movement = getMovement();
+  if ( (smoothing.level == 1 || smoothing.level == 5 || smoothing.level == 6)
+      && (movement == MOVEMENT_LEAD_IN || movement == MOVEMENT_LEAD_OUT)
+      && getProperty("linearizeArcs") ) {
+    writeComment("Linearising leads due to smoothing mode");
+    linearize(tolerance);
+    return;
+  }
+
   if ((gRotationModal.getCurrent() == 68) && (getCircularPlane() != PLANE_XY)) { // Can't switch planes while rotation active
     writeComment("Linearising due to active G68 rotation");
     linearize(tolerance);
     return;
   }
+
   var start = getCurrentPosition();
 
   if (isFullCircle()) {
