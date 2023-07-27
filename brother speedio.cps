@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44069 0844120c9547f156b35644855368508777e73712 $
-  $Date: 2023-05-31 08:29:09 $
+  $Revision: 44074 bcbc04a53b30978f99eec9d8ffa5f19570f95d3f $
+  $Date: 2023-06-22 08:33:03 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -478,7 +478,13 @@ function onOpen() {
     break;
   }
 
-  writeProgramNumber();
+  if (programName) {
+    writeComment(programName + conditional(programComment, " (" + programComment + ")"));
+  } else {
+    error(localize("Program name has not been specified."));
+    return;
+  }
+
   writeProgramHeader();
   // absolute coordinates and feed per min
   writeBlock(gMotionModal.format(0), gAbsIncModal.format(90), gFormat.format(40), gFormat.format(80));
@@ -1697,31 +1703,6 @@ function onClose() {
   setSmoothing(false);
   setWorkPlane(new Vector(0, 0, 0)); // reset working plane
   writeBlock(mFormat.format(30)); // stop program, spindle stop, coolant off
-}
-
-function writeProgramNumber() {
-  if (programName) {
-    var programId;
-    try {
-      programId = getAsInt(programName);
-    } catch (e) {
-      error(localize("Program name must be a number."));
-      return;
-    }
-    if (!((programId >= 1) && (programId <= getProperty("o8") ? 99999999 : 9999))) {
-      error(localize("Program number is out of range."));
-      return;
-    }
-    if ((programId >= 8000) && (programId <= 9999)) {
-      warning(localize("Program number is reserved by tool builder."));
-    }
-
-    oFormat = createFormat({width:(getProperty("o8") ? 8 : 4), zeropad:true, decimals:0});
-    writeComment(oFormat.format(programId) + conditional(programComment, " " + formatComment(programComment)));
-  } else {
-    error(localize("Program name has not been specified."));
-    return;
-  }
 }
 
 // >>>>> INCLUDED FROM include_files/commonFunctions.cpi
