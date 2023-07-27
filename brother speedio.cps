@@ -194,6 +194,17 @@ properties = {
     ],
     value: "-1"
   },
+  smoothingCriteria: {
+    title      : "Smoothing Criteria",
+    description: "Select whether Stock to Leave or Tolerance is used for determining the automatic smoothing mode. Only used when High accuracy level is set to Automatic.",
+    group      : "preferences",
+    type       : "enum",
+    values     : [
+      {title:"Stock to Leave", id:"stock"},
+      {title:"Tolerance", id:"tolerance"},
+    ],
+    value: "stock"
+  },
   useInverseTime: {
     title      : "Use inverse time feedrates",
     description: "'Yes' enables inverse time feedrates, 'No' outputs DPM feedrates.",
@@ -459,6 +470,7 @@ function onOpen() {
     settings.smoothing.finishing = 2;
     break;
   }
+  settings.smoothing.autoLevelCriteria = getProperty("smoothingCriteria");
 
   if (programName) {
     writeComment(programName + conditional(programComment, SP + formatComment(programComment)));
