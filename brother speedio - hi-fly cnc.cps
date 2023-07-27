@@ -212,6 +212,18 @@ properties = {
     ],
     value: "-1"
   },
+  smoothingCriteria: {
+    title      : "Smoothing Criteria",
+    description: "Select whether Stock to Leave or Tolerance is used for determining the automatic smoothing mode. Only used when High accuracy level is set to Automatic.",
+    group      : "preferences",
+    type       : "enum",
+    values     : [
+      {title:"Stock to Leave", id:"stock"},
+      {title:"Tolerance", id:"tolerance"},
+    ],
+    value      : "stock",
+    scope      : "post"
+  },
   useMachiningLoadMonitor: {
     title      : "Machining Load Monitor",
     description: "Specifies if the Machining Load Monitor code (M341/M342/M343) should be output in nc code.",
@@ -498,6 +510,7 @@ function onOpen() {
     settings.smoothing.finishing = 2;
     break;
   }
+  settings.smoothing.autoLevelCriteria = getProperty("smoothingCriteria");
 
   fourthAxisClamp.format(443); // Default 4th axis modal code to be clamped
   fifthAxisClamp.format(441); // Default 5th axis modal code to be clamped
