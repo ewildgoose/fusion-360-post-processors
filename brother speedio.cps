@@ -2178,9 +2178,68 @@ function onParameter(name, value) {
     }
     firstNote = false;
     break;
+  case "action":
+    onAction(value);
+    break;
   default:
     break;
   }
+}
+
+// Assumes all actions are of the form "action:param"
+function onAction(action) {
+  var invalid = false;
+  var sText1 = String(action).toUpperCase();
+  var sText2 = new Array();
+  sText2 = sText1.split(":");
+  if (sText2.length != 2) {
+    error(localize("Invalid action command: ") + action);
+    return;
+  }
+  var param = sText2[1];
+  writeln("");
+
+  switch (sText2[0]) {
+  case "ROTATE_WCS":
+    param = parseChoice(param, "YES", "NO", "TRUE", "FALSE");
+    if (param == undefined) {
+      error(localize("fastToolChange must be Yes or No"));
+      return;
+    } else if (param) {
+      // Enable WCS rotation.
+      writeComment("ENABLE WCS ROTATION. ENSURE ROTATION PARAM UPDATED BEFORE THIS LINE")
+      setProbeAngleMethod();
+      if (probeVariables.compensationXY == undefined) {
+        probeVariables.compensationXY = "X" + xyzFormat.format(0) + " Y" + xyzFormat.format(0);
+      }
+    } else {
+      writeComment("DISABLE WCS ROTATION")
+      probeVariables.outputRotationCodes = false;
+      writeBlock(gRotationModal.format(69)); // cancel frame
+    };
+    break;
+  default:
+    error(localize("Invalid action parameter: ") + sText2[0] + ":" + param);
+    return;
+  }
+}
+
+/* returns the choice specified in a text string compared to a list of choices */
+function parseChoice() {
+  var stat = undefined;
+  for (i = 1; i < arguments.length; i++) {
+    if (String(arguments[0]).toUpperCase() == String(arguments[i]).toUpperCase()) {
+      if ((String(arguments[i]).toUpperCase() == "YES") || (String(arguments[i]).toUpperCase() == "TRUE")) {
+        stat = true;
+      } else if ((String(arguments[i]).toUpperCase() == "NO") || (String(arguments[i]).toUpperCase() == "FALSE")) {
+        stat = false;
+      } else {
+        stat = i - 1;
+        break;
+      }
+    }
+  }
+  return stat;
 }
 
 // Format and write a multiline text string as a comment
