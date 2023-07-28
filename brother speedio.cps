@@ -175,7 +175,8 @@ properties = {
       {title:"B", id:"B"},
       {title:"M298", id:"M298"}
     ],
-    value: "A"
+    value      : "M298",
+    scope      : "post"
   },
   useSmoothing: {
     title      : "High accuracy level",
@@ -185,14 +186,38 @@ properties = {
     values     : [
       {title:"Off", id:"-1"},
       {title:"Automatic", id:"9999"},
-      {title:"Standard", id:"0"}, // 0
-      {title:"Roughing", id:"1"}, // 5
-      {title:"Medium rough", id:"2"}, // 3
-      {title:"Medium rough high", id:"3"}, // 4
-      {title:"Finishing", id:"4"}, // 1
-      {title:"Finishing high", id:"5"} // 2
+      {title:"Standard", id:"1"}, // 0
+      {title:"Roughing", id:"2"}, // 5
+      {title:"Medium rough", id:"3"}, // 3
+      {title:"Medium rough (S)", id:"4"}, // 4
+      {title:"Finishing", id:"5"}, // 1
+      {title:"Finishing (S)", id:"6"} // 2
     ],
-    value: "-1"
+    value      : "9999",
+    scope      : "post"
+  },
+  accuracyOverride: {
+    title: "Accuracy mode",
+    group: 0,
+    description: "Override high accuracy mode for current operation",
+    type: "enum",
+    values: [
+      {title:"No Change", id:"-9999"},
+      {title:"Accuracy Off", id:"-1"},
+      {title:"Automatic", id:"9999"},
+      {title:"Standard", id:"1"},
+      {title:"Roughing", id:"2"},
+      {title:"Medium rough", id:"3"},
+      {title:"Medium rough (S)", id:"4"},
+      {title:"Finishing", id:"5"},
+      {title:"Finishing (S)", id:"6"},
+      {title:"Accuracy spec A", id:"21"},
+      {title:"Accuracy spec B", id:"22"},
+      {title:"Accuracy spec C", id:"23"}
+    ],
+    value: "-9999",
+    scope : "operation",
+    enabled : "milling",
   },
   smoothingCriteria: {
     title      : "Smoothing Criteria",
@@ -357,10 +382,13 @@ var settings = {
     singleLineCoolant: false, // specifies to output multiple coolant codes in one line rather than in separate lines
   },
   smoothing: {
+    off                   : -1, // disabled
+    normal                : 1, // general purpose, optimised settings
     roughing              : 2, // roughing level for smoothing in automatic mode
-    semi                  : 3, // semi-roughing level for smoothing in automatic mode
-    semifinishing         : 4, // semi-finishing level for smoothing in automatic mode
+    semi                  : 4, // semi-roughing level for smoothing in automatic mode
+    semifinishing         : 1, // semi-finishing level for smoothing in automatic mode
     finishing             : 5, // finishing level for smoothing in automatic mode
+    finishingS            : 6, // finishing with smoothing
     thresholdRoughing     : toPreciseUnit(0.5, MM), // operations with stock/tolerance at/above that threshold will use roughing level in automatic mode
     thresholdFinishing    : toPreciseUnit(0.05, MM), // operations with stock/tolerance at/below that threshold will use finishing level in automatic mode
     thresholdSemiFinishing: toPreciseUnit(0.1, MM), // operations with stock/tolerance at/below that threshold (and above threshold finishing) will use semi finishing level in automatic mode
@@ -552,16 +580,12 @@ function setSmoothing(mode) {
     validate(!lengthCompensationActive, "Length compensation is active while trying to update smoothing.");
   }
 
-  // for smoothingModes A and B mapping is required for smoothing level value
-  var propertyBaseLevel = parseInt(getProperty("useSmoothing"), 10);
-  propertyBaseLevel = isNaN(propertyBaseLevel) ? -1 : propertyBaseLevel;
-  var mappedLevel = (propertyBaseLevel >= 0 && propertyBaseLevel <= 5) ? [0, 5, 3, 4, 1, 2][propertyBaseLevel] : smoothing.level;
   switch (getProperty("smoothingMode")) {
   case "A":
-    writeBlock(mFormat.format(mode ? 260 + mappedLevel : 269));
+    writeBlock(mFormat.format(mode ? 260 + smoothing.level : 269));
     break;
   case "B":
-    writeBlock(mFormat.format(mode ? 280 + mappedLevel : 289));
+    writeBlock(mFormat.format(mode ? 280 + smoothing.level : 289));
     break;
   default:
     writeBlock(mFormat.format(298), mode ? "L" + smoothing.level : "L0");
@@ -3179,9 +3203,36 @@ function initializeSmoothing() {
   var thresholdFinishing = xyzFormat.getResultingValue(smoothingSettings.thresholdFinishing);
 
   // determine new smoothing levels and tolerances
-  smoothing.level = parseInt(getProperty("useSmoothing"), 10);
+  smoothing.level = parseInt(getProperty("accuracyOverride", "-9999"), 10);
+  if ((smoothing.level == -9999) || isNaN(smoothing.level)) {
+    // Fall back to the 'post' level property
+    smoothing.level = parseInt(getProperty("useSmoothing", "-1"), 10);
+  }
   smoothing.level = isNaN(smoothing.level) ? -1 : smoothing.level;
   smoothing.tolerance = xyzFormat.getResultingValue(Math.max(getParameter("operation:tolerance", thresholdFinishing), 0));
+
+  // setup for proper smoothing mode
+  switch (getProperty("smoothingMode")) {
+  case "A":
+  case "B":
+    smoothingSettings.roughing = 5;
+    smoothingSettings.semi = 3;
+    smoothingSettings.semifinishing = 1;
+    smoothingSettings.finishing = 2;
+
+    if (smoothing.level >= 1 && smoothing.level <= 6) {
+      smoothing.level = [0, 5, 3, 4, 1, 2][smoothing.level-1];
+    } else if (smoothing.level != 9999 && smoothing.level != -1) {
+      error(localize("Invalid smoothing level for mode A/B:" + smoothing.level));
+    }
+    break;
+  case "M298":
+    if (! ( (smoothing.level >= 1 && smoothing.level <= 6) || (smoothing.level >= 21 && smoothing.level <= 23) ||
+            (smoothing.level == 9999) || (smoothing.level == -1) ) ) {
+      error(localize("Invalid smoothing level for mode M298:" + smoothing.level));
+    }
+    break;
+  }
 
   if (smoothing.level == 9999) {
     if (smoothingSettings.autoLevelCriteria == "stock") { // determine auto smoothing level based on stockToLeave
