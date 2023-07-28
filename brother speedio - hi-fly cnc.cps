@@ -719,8 +719,10 @@ function onSection() {
     validate(probeVariables.probeAngleMethod != "G54.4", "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
     if (getProperty("probingType") == "Renishaw") {
       writeBlock(settings.probing.macroCall, "P" + 8832); // spin the probe on
-      inspectionCreateResultsFileHeader();
+    } else {
+      writeBlock(settings.probing.macroCall, "P" + 8703, "X" + 0, "A0", "M1"); // Zero move to turn on probe
     }
+    inspectionCreateResultsFileHeader();
   }
   if (typeof inspectionProcessSectionStart == "function") {
     inspectionProcessSectionStart();
@@ -785,14 +787,15 @@ function protectedProbeMove(_cycle, x, y, z) {
   var _y = yOutput.format(y);
   var _z = zOutput.format(z);
   var _code = getProperty("probingType") == "Renishaw" ? 8810 : 8703;
+  var _probeParams = getProperty("probingType") == "Renishaw" ? "" : "A1 M3";
   if (_z && z >= getCurrentPosition().z) {
-    writeBlock(gFormat.format(65), "P" + _code, _z, getFeed(cycle.feedrate)); // protected positioning move
+    writeBlock(gFormat.format(65), "P" + _code, _z, getFeed(cycle.feedrate), _probeParams); // protected positioning move
   }
   if (_x || _y) {
-    writeBlock(gFormat.format(65), "P" + _code, _x, _y, getFeed(highFeedrate)); // protected positioning move
+    writeBlock(gFormat.format(65), "P" + _code, _x, _y, getFeed(highFeedrate), _probeParams); // protected positioning move
   }
   if (_z && z < getCurrentPosition().z) {
-    writeBlock(gFormat.format(65), "P" + _code, _z, getFeed(cycle.feedrate)); // protected positioning move
+    writeBlock(gFormat.format(65), "P" + _code, _z, getFeed(cycle.feedrate), _probeParams); // protected positioning move
   }
 }
 
@@ -1099,6 +1102,7 @@ function writeProbeCycle(cycle, x, y, z) {
     writeBlock(
       gFormat.format(65), "P" + (getProperty("probingType") == "Renishaw" ? 8811 : 8700),
       conditional(getProperty("probingType") == "Blum", "A1"),
+      conditional(getProperty("probingType") == "Blum", "M3"),
       "X" + xyzFormat.format(x + approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2)),
       "Q" + xyzFormat.format(cycle.probeOvertravel),
       getProbingArguments(cycle, true)
@@ -1109,6 +1113,7 @@ function writeProbeCycle(cycle, x, y, z) {
     writeBlock(
       gFormat.format(65), "P" + (getProperty("probingType") == "Renishaw" ? 8811 : 8700),
       conditional(getProperty("probingType") == "Blum", "A1"),
+      conditional(getProperty("probingType") == "Blum", "M3"),
       "Y" + xyzFormat.format(y + approach(cycle.approach1) * (cycle.probeClearance + tool.diameter / 2)),
       "Q" + xyzFormat.format(cycle.probeOvertravel),
       getProbingArguments(cycle, true)
@@ -1119,6 +1124,7 @@ function writeProbeCycle(cycle, x, y, z) {
     writeBlock(
       gFormat.format(65), "P" + (getProperty("probingType") == "Renishaw" ? 8811 : 8700),
       conditional(getProperty("probingType") == "Blum", "A1"),
+      conditional(getProperty("probingType") == "Blum", "M3"),
       "Z" + xyzFormat.format(z - cycle.depth),
       "Q" + xyzFormat.format(cycle.probeOvertravel),
       getProbingArguments(cycle, true)
@@ -1139,6 +1145,7 @@ function writeProbeCycle(cycle, x, y, z) {
       writeBlock(
         gFormat.format(65), "P" + 8700,
         "A1",
+        "M3",
         "S" + xyzFormat.format(cycle.width1),
         "X1",
         "Z" + xyzFormat.format(z - cycle.depth),
@@ -1163,6 +1170,7 @@ function writeProbeCycle(cycle, x, y, z) {
       writeBlock(
         gFormat.format(65), "P" + 8700,
         "A1",
+        "M3",
         "S" + xyzFormat.format(cycle.width1),
         "Z" + xyzFormat.format(z - cycle.depth),
         "Y1",
@@ -1186,6 +1194,7 @@ function writeProbeCycle(cycle, x, y, z) {
       writeBlock(
         gFormat.format(65), "P" + 8700,
         "A1",
+        "M3",
         "S" + xyzFormat.format(cycle.width1),
         "X1",
         "Q" + xyzFormat.format(cycle.probeOvertravel),
@@ -1208,6 +1217,7 @@ function writeProbeCycle(cycle, x, y, z) {
       writeBlock(
         gFormat.format(65), "P" + 8700,
         "A1",
+        "M3",
         "R" + xyzFormat.format(-cycle.probeClearance),
         "S" + xyzFormat.format(cycle.width1),
         "Z" + xyzFormat.format(z - cycle.depth),
@@ -1231,6 +1241,7 @@ function writeProbeCycle(cycle, x, y, z) {
       writeBlock(
         gFormat.format(65), "P" + 8700,
         "A1",
+        "M3",
         "S" + xyzFormat.format(cycle.width1),
         "Y1",
         "Q" + xyzFormat.format(cycle.probeOvertravel),
@@ -1253,6 +1264,7 @@ function writeProbeCycle(cycle, x, y, z) {
       writeBlock(
         gFormat.format(65), "P" + 8700,
         "A1",
+        "M3",
         "R" + xyzFormat.format(-cycle.probeClearance),
         "S" + xyzFormat.format(cycle.width1),
         "Z" + xyzFormat.format(z - cycle.depth),
@@ -1277,6 +1289,7 @@ function writeProbeCycle(cycle, x, y, z) {
       writeBlock(
         gFormat.format(65), "P" + 8700,
         "A1",
+        "M3",
         "S" + xyzFormat.format(cycle.width1),
         "Z" + xyzFormat.format(z - cycle.depth),
         "Q" + xyzFormat.format(cycle.probeOvertravel),
@@ -1317,6 +1330,7 @@ function writeProbeCycle(cycle, x, y, z) {
       writeBlock(
         gFormat.format(65), "P" + 8700,
         "A1",
+        "M3",
         "S" + xyzFormat.format(cycle.width1),
         "Q" + xyzFormat.format(cycle.probeOvertravel),
         getProbingArguments(cycle, true)
@@ -1354,6 +1368,7 @@ function writeProbeCycle(cycle, x, y, z) {
       writeBlock(
         gFormat.format(65), "P" + 8700,
         "A1",
+        "M3",
         "R" + xyzFormat.format(-cycle.probeClearance),
         "S" + xyzFormat.format(cycle.width1),
         "Q" + xyzFormat.format(cycle.probeOvertravel),
@@ -1425,6 +1440,7 @@ function writeProbeCycle(cycle, x, y, z) {
       writeBlock(
         gFormat.format(65), "P" + 8700,
         "A1",
+        "M3",
         "S" + xyzFormat.format(cycle.width1),
         "X1",
         "Z" + xyzFormat.format(z - cycle.depth),
@@ -1436,6 +1452,7 @@ function writeProbeCycle(cycle, x, y, z) {
       writeBlock(
         gFormat.format(65), "P" + 8700,
         "A1",
+        "M3",
         "S" + xyzFormat.format(cycle.width2),
         "Y1",
         "Z" + xyzFormat.format(z - cycle.depth),
@@ -1522,6 +1539,7 @@ function writeProbeCycle(cycle, x, y, z) {
       writeBlock(
         gFormat.format(65), "P" + 8700,
         "A1",
+        "M3",
         xOutput.format(cornerX),
         yOutput.format(cornerY),
         "Q" + xyzFormat.format(cycle.probeOvertravel),
@@ -1753,7 +1771,7 @@ function onCycleEnd() {
     if (getProperty("probingType") == "Renishaw") {
       writeBlock(gFormat.format(65), "P" + 8810, zOutput.format(cycle.retract)); // protected retract move
     } else {
-      writeBlock(gFormat.format(65), "P" + 8703, zOutput.format(cycle.retract)); // protected retract move
+      writeBlock(gFormat.format(65), "P" + 8703, zOutput.format(cycle.retract), "A1", "M3"); // protected retract move
     }
   } else if (!cycleExpanded) {
     writeBlock(gCycleModal.format(80));
@@ -1957,9 +1975,11 @@ function onSectionEnd() {
   if (isProbeOperation()) {
     if (getProperty("probingType") == "Renishaw") {
       writeBlock(settings.probing.macroCall, "P" + 8833); // spin the probe off
-      if (probeVariables.probeAngleMethod != "G68") {
-        setProbeAngle(); // output probe angle rotations if required
-      }
+    } else {
+      writeBlock(settings.probing.macroCall, "P" + 8703, "X" + 0, "A0", "M2"); // Zero move to turn off probe
+    }
+    if (settings.probing.probeAngleMethod != "G68") {
+      setProbeAngle(); // output probe angle rotations if required
     }
   }
   if (typeof inspectionProcessSectionEnd == "function") {
