@@ -258,6 +258,14 @@ properties = {
     value: "G53",
     scope: "post"
   },
+  measureTools: {
+    title      : "Optionally measure tools at start",
+    description: "Measure each tool used at the beginning of the program when block delete is turned off.",
+    group      : "probing",
+    type       : "boolean",
+    value      : false,
+    scope      : "post"
+  },
   singleResultsFile: {
     title      : "Create single results file",
     description: "Set to false if you want to store the measurement results for each probe / inspection toolpath in a separate file",
@@ -409,6 +417,7 @@ var probeVariables = {
 var compensateToolLength = false; // add the tool length to the pivot distance for nonTCP rotary heads
 
 var toolChecked = false; // specifies that the tool has been checked with the probe
+var measureTool = false;
 
 function defineMachine() {
   var useTCP = false;
@@ -508,7 +517,11 @@ function onOpen() {
     return;
   }
 
+  sequenceNumber = getProperty("sequenceNumberStart");
+
   writeProgramHeader();
+  writeMeasureTools();
+
   // absolute coordinates and feed per min
   writeBlock(gMotionModal.format(0), gAbsIncModal.format(90), gFormat.format(40), gFormat.format(80));
   writeBlock(gFeedModeModal.format(94), gFormat.format(49));
@@ -1526,6 +1539,72 @@ function getProbingArguments(cycle, updateWCS) {
   }
 }
 
+function writeMeasureTools() {
+  // optionally measure tools
+  if (getProperty("measureTools")) {
+    var tools = getToolTable();
+    optionalSection = true;
+    if (tools.getNumberOfTools() > 0) {
+
+      writeBlock(mFormat.format(0), formatComment(localize("Read note"))); // wait for operator
+      writeComment(localize("With B SKIP turned off each tool be automatically measured"));
+      writeComment(localize("Once the tools are verified turn B SKIP on to skip verification"));
+      for (var i = 0; i < tools.getNumberOfTools(); ++i) {
+        var tool = tools.getTool(i);
+        if (getProperty("measureTools") && (tool.type == TOOL_PROBE)) {
+          continue;
+        }
+        var comment = "T" + toolFormat.format(tool.number) + " " +
+          "D=" + xyzFormat.format(tool.diameter) + " " +
+          localize("CR") + "=" + xyzFormat.format(tool.cornerRadius);
+        if ((tool.taperAngle > 0) && (tool.taperAngle < Math.PI)) {
+          comment += " " + localize("TAPER") + "=" + taperFormat.format(tool.taperAngle) + localize("deg");
+        }
+        comment += " - " + getToolTypeName(tool.type);
+        writeComment(comment);
+        writeToolMeasureBlock(tool, true);
+      }
+
+      // Reload initial tool (side effect to cancel tool length offset)
+      writeComment("Reload initial tool")
+      writeBlock("T" + toolFormat.format(getSection(0).getTool().number), mFormat.format(6)); // get tool
+    }
+    optionalSection = false;
+    writeln("");
+  }
+}
+
+function writeToolMeasureBlock(tool, preMeasure) {
+  var comment = measureTool ? formatComment("MEASURE TOOL") : "";
+  if (!preMeasure) {
+    prepareForToolCheck();
+  }
+  if (getProperty("probingType") == "Renishaw") {
+    // Renishaw untested
+    writeBlock(
+      gFormat.format(65),
+      "P9921",
+      "M" + 22 + ".",
+      "T" + toolFormat.format(tool.number),
+      "D" + xyzFormat.format(tool.diameter) + ".",
+      comment
+    );
+  } else { // Blum
+    writeBlock("T" + toolFormat.format(tool.number), mFormat.format(6)); // get tool
+    writeBlock(mFormat.format(19)); // orientate spindle
+    writeBlock(
+      gFormat.format(65),
+      "P8915",
+      "B0.",
+      "H" + toolFormat.format(tool.number),
+      // Offset facemills (type 9) by tool radius
+      conditional(tool.type == 9, "R" + xyzFormat.format(tool.diameter / 2)),
+      comment
+    ); // probe tool
+  }
+  measureTool = false;
+}
+
 function onCycleEnd() {
   if (isProbeOperation()) {
     zOutput.reset();
@@ -1642,6 +1721,10 @@ function onCommand(command) {
     currentWorkPlaneABC = abc; // workplane is set with the G100 command
     writeComment(tool.comment);
 
+    if (measureTool) {
+      writeToolMeasureBlock(tool, false);
+      startSpindle(tool, true);
+    }
     forceSpindleSpeed = false;
     return;
   case COMMAND_LOCK_MULTI_AXIS:
@@ -1678,6 +1761,7 @@ function onCommand(command) {
     }
     return;
   case COMMAND_TOOL_MEASURE:
+    measureTool = true;
     return;
   }
 
