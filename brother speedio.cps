@@ -317,7 +317,13 @@ wcsDefinitions = {
   useZeroOffset: false,
   wcs          : [
     {name:"Standard", format:"G", range:[54, 59]},
-    {name:"Extended", format:"G54.1 P", range:[1, 300]}
+    {name:"Extended", format:"G54.1 P", range:[1, 300]},
+    {name:"G54 G54.2Pn Rotary", format:"G54 G54.2 P", range:[1, 8]},
+    {name:"G55 G54.2Pn Rotary", format:"G55 G54.2 P", range:[1, 8]},
+    {name:"G56 G54.2Pn Rotary", format:"G56 G54.2 P", range:[1, 8]},
+    {name:"G57 G54.2Pn Rotary", format:"G57 G54.2 P", range:[1, 8]},
+    {name:"G58 G54.2Pn Rotary", format:"G58 G54.2 P", range:[1, 8]},
+    {name:"G59 G54.2Pn Rotary", format:"G59 G54.2 P", range:[1, 8]}
   ]
 };
 
@@ -1851,7 +1857,7 @@ function getProbingArguments(cycle, updateWCS) {
   var outputWCSCode = updateWCS && currentSection.strategy == "probe";
   var probeOutputWorkOffset = currentSection.probeWorkOffset;
   if (outputWCSCode) {
-    validate(probeOutputWorkOffset > 0 && probeOutputWorkOffset <= 55+48, "Work offset is out of range.");
+    validate(probeOutputWorkOffset > 0 && probeOutputWorkOffset <= 306+(6*8), "Work offset is out of range.");
     var nextWorkOffset = hasNextSection() ? getNextSection().workOffset == 0 ? 1 : getNextSection().workOffset : -1;
     if (probeOutputWorkOffset == nextWorkOffset) {
       currentWorkOffset = undefined;
@@ -1871,9 +1877,31 @@ function getProbingArguments(cycle, updateWCS) {
     ];
   } else {
     return [
-      conditional(outputWCSCode, "W" + probeWCSFormat.format(probeOutputWorkOffset > 6 ? -1 * (probeOutputWorkOffset - 6) : (probeOutputWorkOffset + 53)))
+      conditional(outputWCSCode, "W" + probeWCSFormat.format(decodeProbeWCSBlum(probeOutputWorkOffset)))
     ];
   }
+}
+
+// Probe maintains its own WCS which is a bit odd
+// 0 = G54
+// 1-6 = G54-59
+// 7-306 = 1-48 = G54.1 P1-300
+// 307-314 = G54 G54.2 P1-8
+// 315-327 = G55 G54.2 P1-8 ... etc
+function decodeProbeWCSBlum(probeOutputWorkOffset) {
+  if (probeOutputWorkOffset >= 0) {
+    if (probeOutputWorkOffset == 0) {
+      return 54;
+    } else if (probeOutputWorkOffset <= 6) {
+      return probeOutputWorkOffset + 53;
+    } else if (probeOutputWorkOffset <= 306) {
+      return -1 * (probeOutputWorkOffset - 6);
+    } else {
+      return ((probeOutputWorkOffset - 307) % 8) +1;
+    }
+  }
+  error(localize("Unknown probeOutputWorkOffset value:" + probeOutputWorkOffset));
+  return 0;
 }
 
 function writeMeasureTools() {
@@ -2167,6 +2195,10 @@ function onSectionEnd() {
     writeBlock(gFormat.format(49));
   }
   writeBlock(gPlaneModal.format(17));
+
+  if (currentSection.wcs.substring(4,11) == "G54.2 P") {
+    writeBlock(gFormat.format(54.2), "P" + 0); // cancel G54.2
+  }
 
   if ((((getCurrentSectionId() + 1) >= getNumberOfSections()) ||
       (tool.number != getNextSection().getTool().number)) &&
