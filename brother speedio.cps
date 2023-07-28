@@ -136,6 +136,14 @@ properties = {
     value      : false,
     scope      : "post"
   },
+  partsCounter: {
+    title      : "Activate parts counter",
+    description: "Output M211 to activate parts counter",
+    group      : "configuration",
+    type       : "boolean",
+    value      : false,
+    scope      : "post",
+  },
   hasAAxis: {
     title      : "Use A-axis",
     description: "Specifies whether to use the A axis.",
@@ -2134,6 +2142,12 @@ function onClose() {
     writeBlock(mFormat.format(washdownCoolant.off));
   }
   setCoolant(COOLANT_OFF);
+
+  if (getProperty("partsCounter")) {
+    writeComment("ACTIVATE PARTS COUNTER");
+    writeBlock("M211");
+  }
+
   var firstToolNumber = getSection(0).getTool().number;
   writeBlock(gFormat.format(100), "T" + toolFormat.format(firstToolNumber));
   retracted = true; // tool call does a full retract along the z-axis
