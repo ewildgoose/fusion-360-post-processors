@@ -340,9 +340,9 @@ var settings = {
     semi                  : 3, // semi-roughing level for smoothing in automatic mode
     semifinishing         : 4, // semi-finishing level for smoothing in automatic mode
     finishing             : 5, // finishing level for smoothing in automatic mode
-    thresholdRoughing     : toPreciseUnit(0.5, MM), // operations with stock/tolerance above that threshold will use roughing level in automatic mode
-    thresholdFinishing    : toPreciseUnit(0.05, MM), // operations with stock/tolerance below that threshold will use finishing level in automatic mode
-    thresholdSemiFinishing: toPreciseUnit(0.1, MM), // operations with stock/tolerance above finishing and below threshold roughing that threshold will use semi finishing level in automatic mode
+    thresholdRoughing     : toPreciseUnit(0.5, MM), // operations with stock/tolerance at/above that threshold will use roughing level in automatic mode
+    thresholdFinishing    : toPreciseUnit(0.05, MM), // operations with stock/tolerance at/below that threshold will use finishing level in automatic mode
+    thresholdSemiFinishing: toPreciseUnit(0.1, MM), // operations with stock/tolerance at/below that threshold (and above threshold finishing) will use semi finishing level in automatic mode
 
     differenceCriteria: "level", // options: "level", "tolerance", "both". Specifies criteria when output smoothing codes
     autoLevelCriteria : "stock", // use "stock" or "tolerance" to determine levels in automatic mode
@@ -2598,30 +2598,28 @@ function initializeSmoothing() {
     if (smoothingSettings.autoLevelCriteria == "stock") { // determine auto smoothing level based on stockToLeave
       var stockToLeave = xyzFormat.getResultingValue(getParameter("operation:stockToLeave", 0));
       var verticalStockToLeave = xyzFormat.getResultingValue(getParameter("operation:verticalStockToLeave", 0));
-      if (((stockToLeave >= thresholdRoughing) && (verticalStockToLeave >= thresholdRoughing)) || getParameter("operation:strategy", "") == "face") {
+      if (((stockToLeave >= thresholdRoughing) ||
+          ((stockToLeave != 0) && (verticalStockToLeave >= thresholdRoughing))) ||
+          getParameter("operation:strategy", "") == "face") {
         smoothing.level = smoothingSettings.roughing; // set roughing level
+      } else if ((stockToLeave > thresholdSemiFinishing) ||
+                ((stockToLeave > 0) && (verticalStockToLeave > thresholdSemiFinishing))) {
+        smoothing.level = smoothingSettings.semi; // set semi level
+      } else if ((stockToLeave > thresholdFinishing) ||
+            (verticalStockToLeave > thresholdFinishing)) {
+        smoothing.level = smoothingSettings.semifinishing; // set semi-finishing level
       } else {
-        if (((stockToLeave >= thresholdSemiFinishing) && (stockToLeave < thresholdRoughing)) &&
-          ((verticalStockToLeave >= thresholdSemiFinishing) && (verticalStockToLeave  < thresholdRoughing))) {
-          smoothing.level = smoothingSettings.semi; // set semi level
-        } else if (((stockToLeave >= thresholdFinishing) && (stockToLeave < thresholdSemiFinishing)) &&
-          ((verticalStockToLeave >= thresholdFinishing) && (verticalStockToLeave  < thresholdSemiFinishing))) {
-          smoothing.level = smoothingSettings.semifinishing; // set semi-finishing level
-        } else {
-          smoothing.level = smoothingSettings.finishing; // set finishing level
-        }
+        smoothing.level = smoothingSettings.finishing; // set finishing level
       }
     } else { // detemine auto smoothing level based on operation tolerance instead of stockToLeave
       if (smoothing.tolerance >= thresholdRoughing || getParameter("operation:strategy", "") == "face") {
         smoothing.level = smoothingSettings.roughing; // set roughing level
-      } else {
-        if (((smoothing.tolerance >= thresholdSemiFinishing) && (smoothing.tolerance < thresholdRoughing))) {
-          smoothing.level = smoothingSettings.semi; // set semi level
-        } else if (((smoothing.tolerance >= thresholdFinishing) && (smoothing.tolerance < thresholdSemiFinishing))) {
+      } else if (smoothing.tolerance > thresholdSemiFinishing) {
+        smoothing.level = smoothingSettings.semi; // set semi level
+      } else if (smoothing.tolerance > thresholdFinishing) {
           smoothing.level = smoothingSettings.semifinishing; // set semi-finishing level
-        } else {
+      } else {
           smoothing.level = smoothingSettings.finishing; // set finishing level
-        }
       }
     }
   }
