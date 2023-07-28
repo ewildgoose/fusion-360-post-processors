@@ -525,6 +525,12 @@ function ensurePositiveAngle(angle) {
   }
 }
 
+function noSpindle() {
+  // Do not output D, S, M3/4 during G100 for Tap/Probe operations
+  var noSpindle = isTappingCycle(currentSection) || tool.type == TOOL_PROBE;
+  return noSpindle;
+}
+
 function onOpen() {
   // define and enable machine configuration
   receivedMachineConfiguration = machineConfiguration.isReceived();
@@ -847,6 +853,7 @@ function writeDrillCycle(cycle, x, y, z) {
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
           conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitchMM)),
+          sOutput.format(spindleSpeed),
           conditional(getProperty("doubleTapWithdrawSpeed"), "L" + rpmFormat.format(spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
         );
       } else {
@@ -854,6 +861,7 @@ function writeDrillCycle(cycle, x, y, z) {
           gRetractModal.format(98), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 74 : 84),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           "P" + secFormat.format(P),
+          sOutput.format(spindleSpeed),
           cyclefeedOutput.format(F)
         );
       }
@@ -868,6 +876,7 @@ function writeDrillCycle(cycle, x, y, z) {
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
           conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitchMM)),
+          sOutput.format(spindleSpeed),
           conditional(getProperty("doubleTapWithdrawSpeed"), "L" + rpmFormat.format(spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
         );
       } else {
@@ -875,6 +884,7 @@ function writeDrillCycle(cycle, x, y, z) {
           gRetractModal.format(98), gCycleModal.format(74),
           getCommonCycle(x, y, z, cycle.retract),
           "P" + secFormat.format(P),
+          sOutput.format(spindleSpeed),
           cyclefeedOutput.format(F)
         );
       }
@@ -889,6 +899,7 @@ function writeDrillCycle(cycle, x, y, z) {
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
           conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitchMM)),
+          sOutput.format(spindleSpeed),
           conditional(getProperty("doubleTapWithdrawSpeed"), "L" + rpmFormat.format(spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
         );
       } else {
@@ -896,6 +907,7 @@ function writeDrillCycle(cycle, x, y, z) {
           gRetractModal.format(98), gCycleModal.format(84),
           getCommonCycle(x, y, z, cycle.retract),
           "P" + secFormat.format(P),
+          sOutput.format(spindleSpeed),
           cyclefeedOutput.format(F)
         );
       }
@@ -917,6 +929,7 @@ function writeDrillCycle(cycle, x, y, z) {
             "Q" + xyzFormat.format(cycle.incrementalDepth),
             conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
             conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitchMM)),
+            sOutput.format(spindleSpeed),
             conditional(getProperty("doubleTapWithdrawSpeed"), "L" + rpmFormat.format(spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
           );
         } else { // G84/G74 does not support chip breaking
@@ -2063,6 +2076,7 @@ function onCommand(command) {
       coolantCodes = "";
     }
 
+    var rotateSpindle = !noSpindle();
     var abc = settings.workPlaneMethod.useTiltedWorkplane ? undefined : defineWorkPlane(currentSection, false);
     var start = getFramePosition(currentSection.getInitialPosition());
     var preloadTool = getNextTool(tool.number != getFirstTool().number);
@@ -2077,9 +2091,9 @@ function onCommand(command) {
       abc ? cOutput.format(abc.z) : undefined,
       (getProperty("preloadTool") && preloadTool) ? "L" + toolFormat.format(preloadTool.number) : undefined,
       hFormat.format(tool.lengthOffset),
-      conditional(tool.type != TOOL_PROBE, diameterOffsetFormat.format(tool.diameterOffset)),
-      conditional(tool.type != TOOL_PROBE, sOutput.format(spindleSpeed)),
-      conditional(tool.type != TOOL_PROBE, mFormat.format(tool.clockwise ? 3 : 4)),
+      conditional(rotateSpindle, diameterOffsetFormat.format(tool.diameterOffset)),
+      conditional(rotateSpindle, sOutput.format(spindleSpeed)),
+      conditional(rotateSpindle, mFormat.format(tool.clockwise ? 3 : 4)),
       coolantCodes
     );
     currentWorkPlaneABC = abc ? abc : currentWorkPlaneABC; // workplane is set with the G100 command
@@ -2901,7 +2915,7 @@ function writeToolCall(tool, insertToolCall) {
 // >>>>> INCLUDED FROM include_files/startSpindle.cpi
 
 function startSpindle(tool, insertToolCall) {
-  if (tool.type != TOOL_PROBE) {
+  if (!noSpindle()) {
     var spindleSpeedIsRequired = insertToolCall || forceSpindleSpeed || isFirstSection() ||
       rpmFormat.areDifferent(spindleSpeed, sOutput.getCurrent()) ||
       (tool.clockwise != getPreviousSection().getTool().clockwise);
