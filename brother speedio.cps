@@ -582,9 +582,6 @@ function onSection() {
   initializeSmoothing(); // initialize smoothing mode
 
   if (insertToolCall || newWorkOffset || newWorkPlane || smoothing.cancel) {
-    if (insertToolCall && !isFirstSection()) {
-      onCommand(COMMAND_STOP_SPINDLE); // stop spindle before retract during tool change
-    }
     if (!insertToolCall && (newWorkOffset || newWorkPlane)) {
       writeRetract(Z); // retract
       forceXYZ();
@@ -1740,6 +1737,15 @@ function onCommand(command) {
     // Output modal commands here
     writeBlock(gPlaneModal.format(17), gAbsIncModal.format(90), gFeedModeModal.format(94));
 
+    // Let G100 handle coolant change
+    forceCoolant = true;
+    var coolantCodes = getCoolantCodes(tool.coolant);
+    if (Array.isArray(coolantCodes)) {
+      coolantCodes = coolantCodes.join(getWordSeparator());
+    } else{
+      coolantCodes = "";
+    }
+
     var abc = defineWorkPlane(currentSection, false);
     var start = getFramePosition(currentSection.getInitialPosition());
     var preloadTool = getNextTool(tool.number != getFirstTool().number);
@@ -1756,13 +1762,15 @@ function onCommand(command) {
       hFormat.format(tool.lengthOffset),
       conditional(tool.type != TOOL_PROBE, diameterOffsetFormat.format(tool.diameterOffset)),
       conditional(tool.type != TOOL_PROBE, sOutput.format(spindleSpeed)),
-      conditional(tool.type != TOOL_PROBE, mFormat.format(tool.clockwise ? 3 : 4))
+      conditional(tool.type != TOOL_PROBE, mFormat.format(tool.clockwise ? 3 : 4)),
+      coolantCodes
     );
     currentWorkPlaneABC = abc; // workplane is set with the G100 command
     writeComment(tool.comment);
 
     if (measureTool) {
       writeToolMeasureBlock(tool, false);
+      setCoolant(tool.coolant);
       startSpindle(tool, true);
     }
     forceSpindleSpeed = false;
@@ -2481,14 +2489,10 @@ function writeToolCall(tool, insertToolCall) {
     forceModals();
   }
   writeStartBlocks(insertToolCall, function () {
-    if (!retracted) {
-      writeRetract(Z);
-    }
     if (!isFirstSection() && insertToolCall) {
       if (typeof forceWorkPlane == "function") {
         forceWorkPlane();
       }
-      onCommand(COMMAND_COOLANT_OFF); // turn off coolant on tool change
       if (typeof disableLengthCompensation == "function") {
         disableLengthCompensation(false);
       }
