@@ -398,7 +398,7 @@ var settings = {
     optimizeType          : undefined // can be set to OPTIMIZE_NONE, OPTIMIZE_BOTH, OPTIMIZE_TABLES, OPTIMIZE_HEADS, OPTIMIZE_AXIS. 'undefined' uses legacy rotations
   },
   comments: {
-    permittedCommentChars: " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,=_-",
+    permittedCommentChars: " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\"#$&'*+.,;/@<=>?_-[]{}",
     prefix               : "(", // specifies the prefix for the comment
     suffix               : ")", // specifies the suffix for the comment
     upperCase            : true, // set to true to output all comments in upper case
