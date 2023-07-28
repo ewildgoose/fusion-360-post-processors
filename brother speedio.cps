@@ -205,6 +205,14 @@ properties = {
     ],
     value: "stock"
   },
+  toolBreakageTolerance: {
+    title      : "Tool breakage tolerance",
+    description: "Specifies the tolerance for which tool break detection will raise an alarm.",
+    group      : "preferences",
+    type       : "spatial",
+    value      : 0.05,
+    scope      : "post"
+  },
   useInverseTime: {
     title      : "Use inverse time feedrates",
     description: "'Yes' enables inverse time feedrates, 'No' outputs DPM feedrates.",
@@ -1618,6 +1626,26 @@ function onCommand(command) {
   case COMMAND_STOP_CHIP_TRANSPORT:
     return;
   case COMMAND_BREAK_CONTROL:
+    writeln("");
+    writeComment("Performing tool break detection");
+    setCoolant(COOLANT_OFF);
+    onCommand(COMMAND_STOP_SPINDLE);
+    if (getProperty("probingType") == "Renishaw") {
+      writeBlock(
+        gFormat.format(65),
+        "P" + 8858,
+        "B1", // B1=length only, B2=diam only, B3=length and diameter
+        "H" + xyzFormat.format(getProperty("toolBreakageTolerance")),
+        "T" + toolFormat.format(tool.number)
+      );
+    } else {
+      writeBlock(
+        gFormat.format(65),
+        "P" + 8915,
+        "B2",
+        "Q" + xyzFormat.format(getProperty("toolBreakageTolerance"))
+      );
+    }
     return;
   case COMMAND_TOOL_MEASURE:
     return;
@@ -1644,7 +1672,9 @@ function onSectionEnd() {
 
   if (((getCurrentSectionId() + 1) >= getNumberOfSections()) ||
       (tool.number != getNextSection().getTool().number)) {
-    onCommand(COMMAND_BREAK_CONTROL);
+    // should we check for tool breakage?
+    if (tool.breakControl)
+      onCommand(COMMAND_BREAK_CONTROL);
   }
 
   if (tool.type != TOOL_PROBE && getProperty("washdownCoolant") == "operationEnd") {
