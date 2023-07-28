@@ -382,7 +382,7 @@ var settings = {
     optimizeType          : undefined // can be set to OPTIMIZE_NONE, OPTIMIZE_BOTH, OPTIMIZE_TABLES, OPTIMIZE_HEADS, OPTIMIZE_AXIS. 'undefined' uses legacy rotations
   },
   comments: {
-    permittedCommentChars: " abcdefghijklmnopqrstuvwxyz0123456789.,=_-", // letters are not case sensitive, use option 'outputFormat' below. Set to 'undefined' to allow any character
+    permittedCommentChars: " abcdefghijklmnopqrstuvwxyz0123456789!\"#$&'*+.,;:/@<=>?_-[]{}", // letters are not case sensitive, use option 'outputFormat' below. Set to 'undefined' to allow any character
     prefix               : "(", // specifies the prefix for the comment
     suffix               : ")", // specifies the suffix for the comment
     outputFormat         : "upperCase", // can be set to "upperCase", "lowerCase" and "ignoreCase". Set to "ignoreCase" to write comments without upper/lower case formatting
