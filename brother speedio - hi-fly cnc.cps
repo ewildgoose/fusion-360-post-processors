@@ -613,11 +613,9 @@ function onSection() {
   initializeSmoothing(); // initialize smoothing mode
 
   if (insertToolCall || newWorkOffset || newWorkPlane || smoothing.cancel || state.tcpIsActive || currentSection.isMultiAxis()) {
-    if (insertToolCall && !isFirstSection()) {
-      onCommand(COMMAND_COOLANT_OFF); // turn off coolant before retract during tool change
-      onCommand(COMMAND_STOP_SPINDLE); // stop spindle before retract during tool change
+    if (!insertToolCall) {
+      writeRetract(Z); // retract
     }
-    writeRetract(Z); // retract
     disableLengthCompensation();
     if (isFirstSection()) {
       cancelWorkPlane(machineConfiguration.isMultiAxisConfiguration() && settings.workPlaneMethod.useTiltedWorkplane);
@@ -1796,6 +1794,15 @@ function onCommand(command) {
     forceModals();
     writeBlock(gPlaneModal.format(17), gAbsIncModal.format(90), gFeedModeModal.format(94));
 
+    // Let G100 handle coolant change
+    forceCoolant = true;
+    var coolantCodes = getCoolantCodes(tool.coolant);
+    if (Array.isArray(coolantCodes)) {
+      coolantCodes = coolantCodes.join(getWordSeparator());
+    } else{
+      coolantCodes = "";
+    }
+
     var abc = settings.workPlaneMethod.useTiltedWorkplane ? undefined : defineWorkPlane(currentSection, false);
     var start = getFramePosition(currentSection.getInitialPosition());
     var preloadTool = getNextTool(tool.number != getFirstTool().number);
@@ -1812,13 +1819,15 @@ function onCommand(command) {
       hFormat.format(tool.lengthOffset),
       tool.type != TOOL_PROBE ? diameterOffsetFormat.format(tool.diameterOffset) : "",
       tool.type != TOOL_PROBE ? sOutput.format(spindleSpeed) : "",
-      tool.type != TOOL_PROBE ? mFormat.format(tool.clockwise ? 3 : 4) : ""
+      tool.type != TOOL_PROBE ? mFormat.format(tool.clockwise ? 3 : 4) : "",
+      coolantCodes
     );
     writeComment(tool.comment);
     currentWorkPlaneABC = abc ? abc : currentWorkPlaneABC; // workplane is set with the G100 command
 
     if (measureTool) {
       writeToolMeasureBlock(tool, false);
+      setCoolant(tool.coolant);
       startSpindle(tool, true);
     }
     forceSpindleSpeed = false;
@@ -2897,7 +2906,6 @@ function writeToolCall(tool, insertToolCall) {
     });
   }
   writeStartBlocks(insertToolCall, function () {
-    writeRetract(Z);
     if (getSetting("retract.homeXY.onToolChange", false)) {
       writeRetract(settings.retract.homeXY.onToolChange);
     }
@@ -2905,7 +2913,6 @@ function writeToolCall(tool, insertToolCall) {
       if (typeof forceWorkPlane == "function") {
         forceWorkPlane();
       }
-      onCommand(COMMAND_COOLANT_OFF); // turn off coolant on tool change
       if (typeof disableLengthCompensation == "function") {
         disableLengthCompensation(false);
       }
