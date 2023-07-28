@@ -333,7 +333,9 @@ wcsDefinitions = {
   useZeroOffset: false,
   wcs          : [
     {name:"Standard", format:"G", range:[54, 59]},
-    {name:"Extended", format:"G54.1 P", range:[1, 300]}
+    {name:"Extended", format:"G54.1 P", range:[1, 48]},
+    {name:"G54 G54.2Pn Rotary", format:"G54 G54.2 P", range:[1, 8]},
+    {name:"G55 G54.2Pn Rotary", format:"G55 G54.2 P", range:[1, 8]}
   ]
 };
 
@@ -2075,6 +2077,10 @@ function onSectionEnd() {
     writeBlock(gFormat.format(49));
   }
   writeBlock(gPlaneModal.format(17));
+
+  if (currentSection.wcs.substring(4,11) == "G54.2 P") {
+    writeBlock(gFormat.format(54.2), "P" + 0); // cancel G54.2
+  }
 
   if ((((getCurrentSectionId() + 1) >= getNumberOfSections()) ||
       (tool.number != getNextSection().getTool().number)) &&
