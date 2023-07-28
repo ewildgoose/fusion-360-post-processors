@@ -2068,19 +2068,22 @@ function onClose() {
   writeln("");
 
   setCoolant(COOLANT_OFF);
-  if (tool.type != TOOL_PROBE) {
-    setMachineLoadMonitor(false); // disable machine load monitoring
-    if (getProperty("washdownCoolant") == "programEnd") {
-      writeBlock(washdownModal.format(washdownCoolant.on));
+  if (getNumberOfSections() > 0) {
+    if (tool.type != TOOL_PROBE) {
+      setMachineLoadMonitor(false); // disable machine load monitoring
+      if (getProperty("washdownCoolant") == "programEnd") {
+        writeBlock(washdownModal.format(washdownCoolant.on));
+      }
+      writeBlock(washdownModal.format(washdownCoolant.off));
     }
-    writeBlock(washdownModal.format(washdownCoolant.off));
+
+    var firstToolNumber = getSection(0).getTool().number;
+    writeBlock(gFormat.format(100), "T" + toolFormat.format(firstToolNumber));
+    if (getSetting("retract.homeXY.onProgramEnd", false)) {
+      writeRetract(settings.retract.homeXY.onProgramEnd);
+    }
   }
 
-  var firstToolNumber = getSection(0).getTool().number;
-  writeBlock(gFormat.format(100), "T" + toolFormat.format(firstToolNumber));
-  if (getSetting("retract.homeXY.onProgramEnd", false)) {
-    writeRetract(settings.retract.homeXY.onProgramEnd);
-  }
   setSmoothing(false);
   setWorkPlane(new Vector(0, 0, 0)); // reset working plane
   if (typeof inspectionProcessSectionEnd == "function") {
