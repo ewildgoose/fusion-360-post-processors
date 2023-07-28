@@ -676,6 +676,7 @@ function onSection() {
   if (insertToolCall) {
     currentWorkOffset = undefined; // force work offset when changing tool
     wcsIsRequired = newWorkOffset || insertToolCall;
+    writeBlock(gRotationModal.format(69)); // cancel frame
   }
   writeWCS(currentSection, wcsIsRequired);
 
@@ -3439,6 +3440,11 @@ function onCircular(clockwise, cx, cy, cz, x, y, z, feed) {
     return;
   }
 
+  if ((gRotationModal.getCurrent() == 68) && (getCircularPlane() != PLANE_XY)) { // Can't switch planes while rotation active
+    writeComment("Linearising due to active G68 rotation");
+    linearize(tolerance);
+    return;
+  }
   var start = getCurrentPosition();
 
   if (isFullCircle()) {
