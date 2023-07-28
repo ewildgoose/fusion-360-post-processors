@@ -2148,9 +2148,11 @@ function onClose() {
     writeBlock("M211");
   }
 
-  var firstToolNumber = getSection(0).getTool().number;
-  writeBlock(gFormat.format(100), "T" + toolFormat.format(firstToolNumber));
-  retracted = true; // tool call does a full retract along the z-axis
+  if (getNumberOfSections() > 0) {
+    var firstToolNumber = getSection(0).getTool().number;
+    writeBlock(gFormat.format(100), "T" + toolFormat.format(firstToolNumber));
+    retracted = true; // tool call does a full retract along the z-axis
+  }
   // Move table to final position
   if (getProperty("positionAtEnd") != "noMove") {
     writeRetract(X, Y);
