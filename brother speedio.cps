@@ -250,6 +250,14 @@ properties = {
     value      : false,
     scope      : "post"
   },
+  confirmToolLengths: {
+    title      : "Confirm tool lengths",
+    description: "Ensure that the actual tool lengths are equal or longer to that specified in CAM.",
+    group      : "probing",
+    type       : "boolean",
+    value      : false,
+    scope      : "post"
+  },
   singleResultsFile: {
     title      : "Create single results file",
     description: "Set to false if you want to store the measurement results for each probe / inspection toolpath in a separate file",
@@ -1522,6 +1530,10 @@ function getProbingArguments(cycle, updateWCS) {
 }
 
 function writeMeasureTools() {
+  // Save showSequenceNumbers setting and then disable it
+  var show = getProperty("showSequenceNumbers");
+  setProperty("showSequenceNumbers", "false");
+
   // optionally measure tools
   if (getProperty("measureTools")) {
     var tools = getToolTable();
@@ -1554,6 +1566,37 @@ function writeMeasureTools() {
     optionalSection = false;
     writeln("");
   }
+
+  // optionally confirm tool lengths
+  if (getProperty("confirmToolLengths")) {
+    var toolLenBase = 11000;
+    var tools = getToolTable();
+    optionalSection = true;
+    if (tools.getNumberOfTools() > 0) {
+
+      for (var i = 0; i < tools.getNumberOfTools(); ++i) {
+        var tool = tools.getTool(i);
+        if (tool.type == TOOL_PROBE) {
+          continue;
+        }
+
+        // Compare tool table len with CAM len and stop if shorter
+        var camLen = xyzFormat.format(tool.bodyLength + tool.holderLength);
+        var tooltableLen = "#" + (toolLenBase + tool.number);
+        var seq = sequenceNumber;
+        sequenceNumber += getProperty("sequenceNumberIncrement");
+        writeComment("Checking lengths of tool: " + tool.number);
+        writeBlock("N" + seq + " IF [" + tooltableLen + " GE " + camLen + "] GOTO " + sequenceNumber);
+        writeBlock("#3006=(TOOL " + tool.number + " TOO SHORT)")
+      }
+      writeBlock("N" + sequenceNumber)
+      sequenceNumber += getProperty("sequenceNumberIncrement");
+    }
+    optionalSection = false;
+    writeln("");
+  }
+  // Restore setting
+  setProperty("showSequenceNumbers", show);
 }
 
 function writeToolMeasureBlock(tool, preMeasure) {
