@@ -389,7 +389,7 @@ var settings = {
       {id:COOLANT_FLOOD, on:8},
       {id:COOLANT_MIST},
       {id:COOLANT_THROUGH_TOOL, on:494, off:495},
-      {id:COOLANT_AIR},
+      {id:COOLANT_AIR, on: 402, off: 403},
       {id:COOLANT_AIR_THROUGH_TOOL},
       {id:COOLANT_SUCTION},
       {id:COOLANT_FLOOD_MIST},
