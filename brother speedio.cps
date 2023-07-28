@@ -258,6 +258,19 @@ properties = {
     value: "G53",
     scope: "post"
   },
+  positionAtEnd: {
+    title      : "Part position at cycle end",
+    description: "'Center At Door' Moves the part in X in center under spindle at end of program. 'Home' Moves the table to the home position defined in the machine setup",
+    group      : "homePositions",
+    type       : "enum",
+    values     : [
+      {title:"Home", id:"home"},
+      {title:"No Move", id:"noMove"},
+      {title:"Center at Door", id:"centerAtDoor"}
+    ],
+    value: "home",
+    scope: "post"
+  },
   measureTools: {
     title      : "Optionally measure tools at start",
     description: "Measure each tool used at the beginning of the program when block delete is turned off.",
@@ -1913,7 +1926,10 @@ function onClose() {
   var firstToolNumber = getSection(0).getTool().number;
   writeBlock(gFormat.format(100), "T" + toolFormat.format(firstToolNumber));
   retracted = true; // tool call does a full retract along the z-axis
-  writeRetract(X, Y);
+  // Move table to final position
+  if (getProperty("positionAtEnd") != "noMove") {
+    writeRetract(X, Y);
+  }
   setSmoothing(false);
   setWorkPlane(new Vector(0, 0, 0)); // reset working plane
   writeBlock(mFormat.format(30)); // stop program, spindle stop, coolant off
@@ -2365,13 +2381,27 @@ function getRetractParameters() {
   }
   // define home positions
   var useZeroValues = (settings.retract.useZeroValues && settings.retract.useZeroValues.indexOf(method) != -1);
-  var _xHome = machineConfiguration.hasHomePositionX() && !useZeroValues ? machineConfiguration.getHomePositionX() : toPreciseUnit(0, MM);
+  var _xHomeRel = false;
+  if (getProperty("positionAtEnd") == "home") {
+    _xHome = machineConfiguration.hasHomePositionX() && !useZeroValues ? machineConfiguration.getHomePositionX() : toPreciseUnit(0, MM);
+  } else if (getProperty("positionAtEnd") == "centerAtDoor" &&
+              hasParameter("part-upper-x") && hasParameter("part-lower-x")) {
+    _xHomeRel = true;
+    _xHome = (getParameter("part-upper-x") + getParameter("part-lower-x"))/2;
+  } else {
+    _xHome = toPreciseUnit(0, MM);
+  }
   var _yHome = machineConfiguration.hasHomePositionY() && !useZeroValues ? machineConfiguration.getHomePositionY() : toPreciseUnit(0, MM);
   var _zHome = machineConfiguration.getRetractPlane() != 0 && !useZeroValues ? machineConfiguration.getRetractPlane() : toPreciseUnit(0, MM);
   for (var i = 0; i < arguments.length; ++i) {
     switch (arguments[i]) {
     case X:
-      words.push("X" + xyzFormat.format(_xHome));
+      // special conditions
+      if (_xHomeRel) { // output X in standard block by itself if centering
+        writeBlock(gAbsIncModal.format(90), gMotionModal.format(0), "X" + xyzFormat.format(_xHome));
+      } else {
+        words.push("X" + xyzFormat.format(_xHome));
+      }
       xOutput.reset();
       break;
     case Y:
