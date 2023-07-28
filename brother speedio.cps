@@ -242,6 +242,19 @@ properties = {
     value      : false,
     scope      : "post"
   },
+  positionAtEnd: {
+    title      : "Part position at cycle end",
+    description: "'Center At Door' Moves the part in X in center under spindle at end of program. 'Home' Moves the table to the home position defined in the machine setup",
+    group      : "homePositions",
+    type       : "enum",
+    values     : [
+      {title:"Home", id:"home"},
+      {title:"No Move", id:"noMove"},
+      {title:"Center at Door", id:"centerAtDoor"}
+    ],
+    value: "home",
+    scope: "post"
+  },
   measureTools: {
     title      : "Optionally measure tools at start",
     description: "Measure each tool used at the beginning of the program when block delete is turned off.",
@@ -1880,18 +1893,31 @@ function onClose() {
   }
   writeln("");
 
-  setCoolant(COOLANT_OFF);
-  if (tool.type != TOOL_PROBE && (getProperty("washdownCoolant") == "always" || getProperty("washdownCoolant") == "programEnd")) {
-    if (getProperty("washdownCoolant") == "programEnd") {
-      writeBlock(mFormat.format(washdownCoolant.on));
+  if (getNumberOfSections() > 0) {
+    setCoolant(COOLANT_OFF);
+    if (tool.type != TOOL_PROBE && (getProperty("washdownCoolant") == "always" || getProperty("washdownCoolant") == "programEnd")) {
+      if (getProperty("washdownCoolant") == "programEnd") {
+        writeBlock(mFormat.format(washdownCoolant.on));
+      }
+      writeBlock(mFormat.format(washdownCoolant.off));
     }
-    writeBlock(mFormat.format(washdownCoolant.off));
+    setCoolant(COOLANT_OFF);
+
+    writeBlock(mFormat.format(159)); // Block look-ahead
+    // Move table to final position
+    retracted = true; // tool call does a full retract along the z-axis
+    var retract_words;
+    if (getProperty("positionAtEnd") != "noMove") {
+      var retract = getRetractParameters(X, Y);
+      if (retract && retract.words.length > 0) {
+        retract_words = retract.words;
+      }
+    }
+
+    var firstToolNumber = getSection(0).getTool().number;
+    writeBlock(gFormat.format(100), "T" + toolFormat.format(firstToolNumber), gAbsIncModal.format(90), gFormat.format(53), retract_words);
   }
-  setCoolant(COOLANT_OFF);
-  var firstToolNumber = getSection(0).getTool().number;
-  writeBlock(gFormat.format(100), "T" + toolFormat.format(firstToolNumber));
-  retracted = true; // tool call does a full retract along the z-axis
-  writeRetract(X, Y);
+
   setSmoothing(false);
   setWorkPlane(new Vector(0, 0, 0)); // reset working plane
   writeBlock(mFormat.format(30)); // stop program, spindle stop, coolant off
@@ -2382,13 +2408,24 @@ function getRetractParameters() {
   }
   // define home positions
   var useZeroValues = (settings.retract.useZeroValues && settings.retract.useZeroValues.indexOf(method) != -1);
-  var _xHome = machineConfiguration.hasHomePositionX() && !useZeroValues ? machineConfiguration.getHomePositionX() : toPreciseUnit(0, MM);
+  var _xHomeRel = false;
+  if (getProperty("positionAtEnd") == "home") {
+    _xHome = machineConfiguration.hasHomePositionX() && !useZeroValues ? machineConfiguration.getHomePositionX() : toPreciseUnit(0, MM);
+    _xHome = xyzFormat.format(_xHome);
+  } else if (getProperty("positionAtEnd") == "centerAtDoor" &&
+              hasParameter("part-upper-x") && hasParameter("part-lower-x")) {
+    _xHomeRel = true;
+    _xHome = "[#5021-#5041+" + xyzFormat.format((getParameter("part-upper-x") + getParameter("part-lower-x"))/2) + "]";
+  } else {
+    _xHome = xyzFormat.format(toPreciseUnit(0, MM));
+  }
   var _yHome = machineConfiguration.hasHomePositionY() && !useZeroValues ? machineConfiguration.getHomePositionY() : toPreciseUnit(0, MM);
   var _zHome = machineConfiguration.getRetractPlane() != 0 && !useZeroValues ? machineConfiguration.getRetractPlane() : toPreciseUnit(0, MM);
   for (var i = 0; i < arguments.length; ++i) {
     switch (arguments[i]) {
     case X:
-      words.push("X" + xyzFormat.format(_xHome));
+      // special conditions
+      words.push("X" + _xHome);
       xOutput.reset();
       break;
     case Y:
