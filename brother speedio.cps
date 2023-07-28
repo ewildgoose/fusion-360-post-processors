@@ -3230,6 +3230,7 @@ function writeProgramHeader() {
             comment += " - " + localize("ZMIN") + "=" + xyzFormat.format(zRanges[tool.number].getMinimum());
           }
           comment += " - " + getToolTypeName(tool.type);
+          comment += " - L=" + xyzFormat.format(tool.bodyLength) + "/" + xyzFormat.format(tool.bodyLength + tool.holderLength);
           writeComment(comment);
         }
         writeln("");
