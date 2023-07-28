@@ -112,6 +112,38 @@ properties = {
     value      : false,
     scope      : "post"
   },
+  partsCounter211: {
+    title      : "Activate M211 parts counter",
+    description: "Output M211 to activate parts counter",
+    group      : "configuration",
+    type       : "boolean",
+    value      : true,
+    scope      : "post",
+  },
+  partsCounter212: {
+    title      : "Activate M212 parts counter",
+    description: "Output M212 to activate parts counter",
+    group      : "configuration",
+    type       : "boolean",
+    value      : false,
+    scope      : "post",
+  },
+  partsCounter213: {
+    title      : "Activate M213 parts counter",
+    description: "Output M213 to activate parts counter",
+    group      : "configuration",
+    type       : "boolean",
+    value      : false,
+    scope      : "post",
+  },
+  partsCounter214: {
+    title      : "Activate M214 parts counter",
+    description: "Output M214 to activate parts counter",
+    group      : "configuration",
+    type       : "boolean",
+    value      : false,
+    scope      : "post",
+  },
   hasAAxis: {
     title      : "Use A-axis",
     description: "Specifies whether to use the A axis.",
@@ -2253,6 +2285,23 @@ function onClose() {
       writeBlock(mFormat.format(washdownCoolant.off));
     }
     setCoolant(COOLANT_OFF);
+
+    if (getProperty("partsCounter211")) {
+      writeComment("ACTIVATE PARTS COUNTER");
+      writeBlock("M211");
+    }
+    if (getProperty("partsCounter212")) {
+      writeComment("ACTIVATE PARTS COUNTER 2");
+      writeBlock("M212");
+    }
+    if (getProperty("partsCounter213")) {
+      writeComment("ACTIVATE PARTS COUNTER 3");
+      writeBlock("M213");
+    }
+    if (getProperty("partsCounter214")) {
+      writeComment("ACTIVATE PARTS COUNTER 4");
+      writeBlock("M214");
+    }
 
     writeBlock(mFormat.format(159)); // Block look-ahead
     // Move table to final position
