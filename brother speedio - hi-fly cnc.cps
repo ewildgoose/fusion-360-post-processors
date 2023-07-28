@@ -422,6 +422,7 @@ var probeVariables = {
   probeAngleMethod   : undefined
 };
 
+var compensateToolLength = false; // add the tool length to the pivot distance for nonTCP rotary heads
 function defineMachine() {
   if ((getProperty("useTrunnion") || getProperty("hasAAxis")) && (receivedMachineConfiguration && machineConfiguration.isMultiAxisConfiguration())) {
     error(localize("You can only select either a machine in the CAM setup or use the properties to define your kinematics."));
@@ -605,6 +606,11 @@ function onSection() {
         setSmoothing(false);
       }
     }
+  }
+
+  if (toolChecked) {
+    forceSpindleSpeed = true; // spindle must be restarted if tool is checked without a tool change
+    toolChecked = false; // state of tool is not known at the beginning of a section since it could be broken for the previous section
   }
 
   writeln("");
@@ -1735,25 +1741,28 @@ function onCommand(command) {
   case COMMAND_STOP_CHIP_TRANSPORT:
     return;
   case COMMAND_BREAK_CONTROL:
-    writeln("");
-    writeComment("Performing tool break detection");
-    setCoolant(COOLANT_OFF);
-    onCommand(COMMAND_STOP_SPINDLE);
-    if (getProperty("probingType") == "Renishaw") {
-      writeBlock(
-        gFormat.format(65),
-        "P" + 8858,
-        "B1", // B1=length only, B2=diam only, B3=length and diameter
-        "H" + xyzFormat.format(getProperty("toolBreakageTolerance")),
-        "T" + toolFormat.format(tool.number)
-      );
-    } else {
-      writeBlock(
-        gFormat.format(65),
-        "P" + 8915,
-        "B2",
-        "Q" + xyzFormat.format(getProperty("toolBreakageTolerance"))
-      );
+    if (!toolChecked) { // avoid duplicate COMMAND_BREAK_CONTROL
+      writeln("");
+      writeComment("Performing tool break detection");
+      prepareForToolCheck();
+      if (getProperty("probingType") == "Renishaw") {
+        writeBlock(
+          gFormat.format(65),
+          "P" + 8858,
+          "B1", // B1=length only, B2=diam only, B3=length and diameter
+          "H" + xyzFormat.format(getProperty("toolBreakageTolerance")),
+          "T" + toolFormat.format(tool.number)
+        );
+      } else {
+        writeBlock(
+          gFormat.format(65),
+          "P" + 8915,
+          "B2",
+          "Q" + xyzFormat.format(getProperty("toolBreakageTolerance"))
+        );
+      }
+      toolChecked = true;
+      lengthCompensationActive = false; // Tool check macros cancel tool length compensation
     }
     return;
   case COMMAND_TOOL_MEASURE:
@@ -1782,11 +1791,12 @@ function onSectionEnd() {
   }
   writeBlock(gPlaneModal.format(17));
 
-  if (((getCurrentSectionId() + 1) >= getNumberOfSections()) ||
-      (tool.number != getNextSection().getTool().number)) {
-    // should we check for tool breakage?
-    if (tool.breakControl)
-      onCommand(COMMAND_BREAK_CONTROL);
+  if ((((getCurrentSectionId() + 1) >= getNumberOfSections()) ||
+      (tool.number != getNextSection().getTool().number)) &&
+      tool.breakControl) {
+    onCommand(COMMAND_BREAK_CONTROL);
+  } else {
+    toolChecked = false;
   }
 
   if (tool.type != TOOL_PROBE && getProperty("washdownCoolant") == "operationEnd") {
@@ -2155,6 +2165,11 @@ function forceAny() {
   forceXYZ();
   forceABC();
   forceFeed();
+}
+
+function prepareForToolCheck() {
+  setCoolant(COOLANT_OFF);
+  onCommand(COMMAND_STOP_SPINDLE);
 }
 
 /**
