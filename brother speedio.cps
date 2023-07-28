@@ -818,7 +818,7 @@ function writeDrillCycle(cycle, x, y, z) {
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
           conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitchMM)),
-          conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
+          conditional(getProperty("doubleTapWithdrawSpeed"), "L" + rpmFormat.format(spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
         );
       } else {
         writeBlock(
@@ -839,7 +839,7 @@ function writeDrillCycle(cycle, x, y, z) {
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
           conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitchMM)),
-          conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
+          conditional(getProperty("doubleTapWithdrawSpeed"), "L" + rpmFormat.format(spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
         );
       } else {
         writeBlock(
@@ -860,7 +860,7 @@ function writeDrillCycle(cycle, x, y, z) {
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
           conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
           conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitchMM)),
-          conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
+          conditional(getProperty("doubleTapWithdrawSpeed"), "L" + rpmFormat.format(spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
         );
       } else {
         writeBlock(
@@ -888,7 +888,7 @@ function writeDrillCycle(cycle, x, y, z) {
             "Q" + xyzFormat.format(cycle.incrementalDepth),
             conditional((tapUnit == IN), "J" + xyzFormat.format(threadsPerInch)),
             conditional((tapUnit == MM), "I" + xyzFormat.format(threadPitchMM)),
-            conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
+            conditional(getProperty("doubleTapWithdrawSpeed"), "L" + rpmFormat.format(spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
           );
         } else { // G84/G74 does not support chip breaking
           error(localize("Tapping with chip breaking is not supported by the G74/G84 cycle."));
