@@ -40,7 +40,7 @@ minimumChordLength = spatial(0.25, MM);
 minimumCircularRadius = spatial(0.01, MM);
 maximumCircularRadius = spatial(1000, MM);
 minimumCircularSweep = toRad(0.01);
-maximumCircularSweep = toRad(180);
+maximumCircularSweep = toRad(360);
 allowHelicalMoves = true;
 allowedCircularPlanes = undefined;
 highFeedrate = (unit == MM) ? 5000 : 200;
