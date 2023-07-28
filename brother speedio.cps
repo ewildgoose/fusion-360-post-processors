@@ -333,7 +333,11 @@ wcsDefinitions = {
   useZeroOffset: false,
   wcs          : [
     {name:"Standard", format:"G", range:[54, 59]},
-    {name:"Extended", format:"G54.1 P", range:[1, 300]}
+    {name:"Extended", format:"G54.1 P", range:[1, 48]},
+    {name:"G54 G54.2Pn Rotary", format:"G54 G54.2 P", range:[1, 8]},
+    {name:"G55 G54.2Pn Rotary", format:"G55 G54.2 P", range:[1, 8]},
+    {name:"G56 G54.2Pn Rotary", format:"G56 G54.2 P", range:[1, 8]},
+    {name:"G57 G54.2Pn Rotary", format:"G57 G54.2 P", range:[1, 8]}
   ]
 };
 
@@ -1891,9 +1895,28 @@ function getProbingArguments(cycle, updateWCS) {
     return [
       // ((cycle.wrongSizeAction && cycle.wrongSizeAction == "stop-message") ? "T" + xyzFormat.format(cycle.toleranceSize ? cycle.toleranceSize : 0) : undefined),
       // ((cycle.outOfPositionAction && cycle.outOfPositionAction == "stop-message") ? "T" + xyzFormat.format(cycle.tolerancePosition ? -1 * cycle.tolerancePosition : 0) : undefined),
-      conditional(outputWCSCode, "W" + probeWCSFormat.format(probeOutputWorkOffset > 6 ? -1 * (probeOutputWorkOffset - 6) : (probeOutputWorkOffset + 53)))
+      conditional(outputWCSCode, "W" + probeWCSFormat.format(decodeProbeWCSBlum(probeOutputWorkOffset)))
     ];
   }
+}
+
+// Probe maintains its own WCS which is a bit odd
+// 1-6 = G54-59
+// 7-54 = 1-48 = G54.1 P1-48
+// 55-62 = G54 G54.2 P1-8
+// 62-69 = G55 G54.2 P1-8 ... etc
+function decodeProbeWCSBlum(probeOutputWorkOffset) {
+  if (probeOutputWorkOffset > 0) {
+    if (probeOutputWorkOffset <= 6) {
+      return probeOutputWorkOffset + 53;
+    } else if (probeOutputWorkOffset <= 54) {
+      return -1 * (probeOutputWorkOffset - 6);
+    } else {
+      return ((probeOutputWorkOffset - 55) % 8) +1;
+    }
+  }
+  error(localize("Unknown probeOutputWorkOffset value"));
+  return 0;
 }
 
 function writeMeasureTools() {
@@ -2181,6 +2204,10 @@ function onSectionEnd() {
     writeBlock(gFormat.format(49));
   }
   writeBlock(gPlaneModal.format(17));
+
+  if (currentSection.wcs.substring(4,11) == "G54.2 P") {
+    writeBlock(gFormat.format(54.2), "P" + 0); // cancel G54.2
+  }
 
   if ((((getCurrentSectionId() + 1) >= getNumberOfSections()) ||
       (tool.number != getNextSection().getTool().number)) &&
