@@ -411,6 +411,9 @@ var compensateToolLength = false; // add the tool length to the pivot distance f
 var toolChecked = false; // specifies that the tool has been checked with the probe
 var measureTool = false;
 
+var jobDescription = "";
+var firstNote = true; // handles output of notes from multiple setups
+
 function defineMachine() {
   var useTCP = false;
   if (getProperty("useTrunnion")) {
@@ -1868,6 +1871,42 @@ function onClose() {
   writeBlock(mFormat.format(30)); // stop program, spindle stop, coolant off
 }
 
+function onParameter(name, value) {
+  switch (name) {
+  case "job-description":
+    // Record updated param so that we can print it in the section break
+    jobDescription = value
+    break;
+  case "job-notes":
+    // Don't output on the very first section, handled by onStart()
+    if (!firstNote && getProperty("showNotes") ) {
+      // FIXME: This assumes that job-description gets set before job-notes
+      writeln("");
+      writeNotes("Setup. " + jobDescription);
+      writeNotes(value);
+    }
+    firstNote = false;
+    break;
+  default:
+    break;
+  }
+}
+
+// Format and write a multiline text string as a comment
+function writeNotes(text) {
+  if (text) {
+    var lines = String(text).split("\n");
+    var r1 = new RegExp("^[\\s]+", "g");
+    var r2 = new RegExp("[\\s]+$", "g");
+    for (line in lines) {
+      var comment = lines[line].replace(r1, "").replace(r2, "");
+      if (comment) {
+        writeComment(comment);
+      }
+    }
+  }
+}
+
 // >>>>> INCLUDED FROM include_files/commonFunctions.cpi
 // internal variables, do not change
 var receivedMachineConfiguration;
@@ -2889,6 +2928,24 @@ properties.writeTools = {
   scope      : "post"
 };
 function writeProgramHeader() {
+  // Any job notes
+  if (getProperty("showNotes")) {
+    writeSetupNotes();
+
+    // Write sub section notes
+    var hasNotes=false;
+    for (var i = 0; i < getNumberOfSections(); ++i) {
+      var section = getSection(i);
+      var notes = section.getParameter("notes")
+      if (notes) {
+        writeln("");
+        writeComment(section.getParameter("operation-comment"), "");
+        writeNotes(notes);
+      }
+    }
+  }
+  writeln("");
+
   // dump machine configuration
   var vendor = machineConfiguration.getVendor();
   var model = machineConfiguration.getModel();
@@ -2941,6 +2998,7 @@ function writeProgramHeader() {
           comment += " - " + getToolTypeName(tool.type);
           writeComment(comment);
         }
+        writeln("");
       }
     }
   }
