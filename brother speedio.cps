@@ -735,14 +735,12 @@ function onSection() {
 
   setCoolant(tool.coolant); // writes the required coolant codes
   // add dwell for through coolant if needed
-  if (tool.coolant == COOLANT_THROUGH_TOOL || tool.coolant == COOLANT_AIR_THROUGH_TOOL || tool.coolant == COOLANT_FLOOD_THROUGH_TOOL) {
-    if (isFirstSection()) {
-      onDwell(1);
+  var lastCoolant = isFirstSection() ? COOLANT_OFF : getPreviousSection().getTool().coolant;
+  if (tool.coolant == COOLANT_FLOOD) {
+    if (lastCoolant == COOLANT_FLOOD_THROUGH_TOOL || lastCoolant == COOLANT_FLOOD) {
+      onDwell(0.25);
     } else {
-      var lastCoolant = getPreviousSection().getTool().coolant;
-      if (!(lastCoolant == COOLANT_THROUGH_TOOL || lastCoolant == COOLANT_AIR_THROUGH_TOOL || lastCoolant == COOLANT_FLOOD_THROUGH_TOOL)) {
-        onDwell(1);
-      }
+      onDwell(1);
     }
   }
 
