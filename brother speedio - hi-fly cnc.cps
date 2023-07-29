@@ -506,7 +506,8 @@ var settings = {
       Renishaw: {x:"#135", y:"#136", z:0, i:0, j:0, k:1, r:"#144", baseParamG54x4:26000, baseParamAxisRot:5200, method:0}, // specifies variables for the angle compensation macros, method 0 = Fanuc, 1 = Haas
       Blum:     {x:"#100", y:"#101", z:0, i:0, j:0, k:1, r:"#143", baseParamG54x4:26000, baseParamAxisRot:5200, method:0} // specifies variables for the angle compensation macros, method 0 = Fanuc, 1 = Haas
     },
-    allowIndexingWCSProbing: false // specifies that probe WCS with tool orientation is supported
+    allowIndexingWCSProbing: false, // specifies that probe WCS with tool orientation is supported
+    probeOn                : false // whether the probe is activated for probing
   },
   maximumSequenceNumber: 999999, // the maximum sequence number (Nxxx), use 'undefined' for unlimited
   polarCycleExpandMode : 1 // 0=EXPAND_NONE: Does not expand any cycles. 1=EXPAND_TCP: Expands drilling cycles, when TCP is on. 2=EXPAND_NON_TCP: Expands drilling cycles, when TCP is off. 3=EXPAND_ALL: Expands all drilling cycles
@@ -822,10 +823,13 @@ function onSection() {
   if (isProbeOperation()) {
     validate(probeVariables.probeAngleMethod != "G68", "You cannot probe while G68 Rotation is in effect.");
     validate(probeVariables.probeAngleMethod != "G54.4", "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
-    if (getProperty("probingType") == "Renishaw") {
-      writeBlock(settings.probing.macroCall, "P" + 8832); // spin the probe on
-    } else {
-      writeBlock(settings.probing.macroCall, "P" + 8703, "A0", "M1", "X" + 0); // Zero move to turn on probe
+    if (! settings.probing.probeOn) {
+      if (getProperty("probingType") == "Renishaw") {
+        writeBlock(settings.probing.macroCall, "P" + 8832); // spin the probe on
+      } else {
+        writeBlock(settings.probing.macroCall, "P" + 8703, "A0", "M1", "X" + 0); // Zero move to turn on probe
+      }
+      settings.probing.probeOn = true;
     }
     inspectionCreateResultsFileHeader();
   }
@@ -2389,11 +2393,16 @@ function onSectionEnd() {
     }
   }
   if (isProbeOperation()) {
-    if (getProperty("probingType") == "Renishaw") {
-      writeBlock(settings.probing.macroCall, "P" + 8833); // spin the probe off
-    } else {
-      writeBlock(settings.probing.macroCall, "P" + 8703, "A0", "M2", "X" + 0); // Zero move to turn off probe
+    if (!hasNextSection() || !(isProbeOperation(getNextSection()) && (getNextSection().getTool().number == tool.number))) {
+      // Turn off probe UNLESS next op is another probe with the same tool
+      if (getProperty("probingType") == "Renishaw") {
+        writeBlock(settings.probing.macroCall, "P" + 8833); // spin the probe off
+      } else {
+        writeBlock(settings.probing.macroCall, "P" + 8703, "A0", "M2", "X" + 0); // Zero move to turn off probe
+      }
+      settings.probing.probeOn = false;
     }
+
     if (settings.probing.probeAngleMethod != "G68") {
       setProbeAngle(); // output probe angle rotations if required
     }
