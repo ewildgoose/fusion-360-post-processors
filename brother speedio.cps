@@ -210,6 +210,20 @@ properties = {
     value      : false,
     scope      : "post"
   },
+  tapAccel: {
+    title      : "Override tap accelerations",
+    description: "If the machine throws <<Servo error (overload)>>, then decrease tap accelerations.",
+    group      : "preferences",
+    type       : "enum",
+    values     : [
+      {title:"No Change", id:"-1"},
+      {title:"High", id:"252"},
+      {title:"Medium", id:"253"},
+      {title:"Slow", id:"254"}
+    ],
+    value      : "-1",
+    scope      : "post"
+  },
   smoothingMode: {
     title      : "High accuracy mode",
     description: "Select the high accuracy mode supported by the control.",
@@ -619,6 +633,12 @@ function onOpen() {
   // Convenient to emit the WCS code for the first section
   if (getNumberOfSections() > 0) {
     writeBlock(getSection(0).wcs);
+  }
+
+  // Tap accel
+  var tapAccel = parseInt(getProperty("tapAccel", "-1"), 10);
+  if (!isNaN(tapAccel) && (tapAccel > 0)) {
+    writeBlock(mFormat.format(tapAccel))
   }
 
   writeComment("File output in " + (unit == 1 ? "MM" : "inches") + ". Please ensure the unit is set correctly on the control");
