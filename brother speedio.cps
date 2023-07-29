@@ -20,7 +20,7 @@ vendor = "Brother";
 vendorUrl = "http://www.brother.com";
 legal = "Copyright (C) 2012-2023 by Autodesk, Inc.";
 certificationLevel = 2;
-minimumRevision = 45917;
+minimumRevision = 45940;
 
 longDescription = "Generic milling post for Brother Speedio S300X1, S500X1 and S700X1 machines.";
 
@@ -1846,61 +1846,59 @@ function getProbingArguments(cycle, updateWCS) {
 }
 
 function writeMeasureTools() {
+  var tools = getToolTable().getNumberOfTools() > 0 ? getToolList("diameter") : [];
+  var tool;
+
   // optionally measure tools
-  if (getProperty("measureTools")) {
-    var tools = getToolTable();
+  if (getProperty("measureTools") && (tools.length > 0)) {
     optionalSection = true;
-    if (tools.getNumberOfTools() > 0) {
-
-      writeBlock(mFormat.format(0), formatComment(localize("Read note"))); // wait for operator
-      writeComment(localize("With B SKIP turned off each tool be automatically measured"));
-      writeComment(localize("Once the tools are verified turn B SKIP on to skip verification"));
-      for (var i = 0; i < tools.getNumberOfTools(); ++i) {
-        var tool = tools.getTool(i);
-        if (getProperty("measureTools") && (tool.type == TOOL_PROBE)) {
-          continue;
-        }
-        var comment = "T" + toolFormat.format(tool.number) + " " +
-          "D=" + xyzFormat.format(tool.diameter) + " " +
-          localize("CR") + "=" + xyzFormat.format(tool.cornerRadius);
-        if ((tool.taperAngle > 0) && (tool.taperAngle < Math.PI)) {
-          comment += " " + localize("TAPER") + "=" + taperFormat.format(tool.taperAngle) + localize("deg");
-        }
-        comment += " - " + getToolTypeName(tool.type);
-        writeComment(comment);
-        writeToolMeasureBlock(tool, true);
+    writeBlock(mFormat.format(0), formatComment(localize("Read note"))); // wait for operator
+    writeComment(localize("With B SKIP turned off each tool be automatically measured"));
+    writeComment(localize("Once the tools are verified turn B SKIP on to skip verification"));
+    for (var tool of getToolList("number")) {
+      tool = tool.tool;
+      if (getProperty("measureTools") && (tool.type == TOOL_PROBE)) {
+        continue;
       }
-
-      // Reload initial tool (side effect to cancel tool length offset)
-      writeComment("Reload initial tool")
-      writeBlock("T" + toolFormat.format(getSection(0).getTool().number), mFormat.format(6)); // get tool
+      var comment = "T" + toolFormat.format(tool.number) + " " +
+        "D=" + xyzFormat.format(tool.diameter) + " " +
+        localize("CR") + "=" + xyzFormat.format(tool.cornerRadius);
+      if ((tool.taperAngle > 0) && (tool.taperAngle < Math.PI)) {
+        comment += " " + localize("TAPER") + "=" + taperFormat.format(tool.taperAngle) + localize("deg");
+      }
+      comment += " - " + getToolTypeName(tool.type);
+      writeComment(comment);
+      writeToolMeasureBlock(tool, true);
     }
+
+    // Reload initial tool (side effect to cancel tool length offset)
+    writeComment("Reload initial tool")
+    writeBlock("T" + toolFormat.format(getSection(0).getTool().number), mFormat.format(6)); // get tool
     optionalSection = false;
     writeln("");
   }
 
   // optionally confirm tool lengths
-  if (getProperty("confirmToolLengths")) {
+  if (getProperty("confirmToolLengths") && (tools.length > 0)) {
     var toolLenBase = 11000;
-    var tools = getToolTable();
+    // var tools = getToolTable();
     optionalSection = true;
-    if (tools.getNumberOfTools() > 0) {
+    // if (tools.getNumberOfTools() > 0) {
+    for (var tool of getToolList("number")) {
+      tool = tool.tool;
 
-      for (var i = 0; i < tools.getNumberOfTools(); ++i) {
-        var tool = tools.getTool(i);
-        if (tool.type == TOOL_PROBE) {
-          continue;
-        }
-
-        // Compare tool table len with CAM len and stop if shorter
-        var camLen = xyzFormat.format(tool.bodyLength + tool.holderLength);
-        var tooltableLen = "#" + (toolLenBase + tool.number);
-        var seq = sequenceNumber;
-        sequenceNumber += getProperty("sequenceNumberIncrement");
-        writeComment("Checking lengths of tool: " + tool.number);
-        writeBlock("N" + seq + " IF [" + tooltableLen + " GE " + camLen + "] GOTO " + sequenceNumber);
-        writeBlock("#3006=(TOOL " + tool.number + " TOO SHORT)")
+      if (tool.type == TOOL_PROBE) {
+        continue;
       }
+
+      // Compare tool table len with CAM len and stop if shorter
+      var camLen = xyzFormat.format(tool.bodyLength + tool.holderLength);
+      var tooltableLen = "#" + (toolLenBase + tool.number);
+      var seq = sequenceNumber;
+      sequenceNumber += getProperty("sequenceNumberIncrement");
+      writeComment("Checking lengths of tool: " + tool.number);
+      writeBlock("N" + seq + " IF [" + tooltableLen + " GE " + camLen + "] GOTO " + sequenceNumber);
+      writeBlock("#3006=(TOOL " + tool.number + " TOO SHORT)")
       writeBlock("N" + sequenceNumber)
       sequenceNumber += getProperty("sequenceNumberIncrement");
     }
@@ -3369,25 +3367,23 @@ function writeProgramHeader() {
           }
         }
       }
-      var tools = getToolTable();
-      if (tools.getNumberOfTools() > 0) {
-        for (var i = 0; i < tools.getNumberOfTools(); ++i) {
-          var tool = tools.getTool(i);
-          var comment = "T" + toolFormat.format(tool.number) + " " +
-          "D=" + xyzFormat.format(tool.diameter) + " " +
-          localize("CR") + "=" + xyzFormat.format(tool.cornerRadius);
-          if ((tool.taperAngle > 0) && (tool.taperAngle < Math.PI)) {
-            comment += " " + localize("TAPER") + "=" + taperFormat.format(tool.taperAngle) + localize("deg");
-          }
-          if (zRanges[tool.number]) {
-            comment += " - " + localize("ZMIN") + "=" + xyzFormat.format(zRanges[tool.number].getMinimum());
-          }
-          comment += " - " + getToolTypeName(tool.type);
-          comment += " - L=" + xyzFormat.format(tool.bodyLength) + "/" + xyzFormat.format(tool.bodyLength + tool.holderLength);
-          writeComment(comment);
+      var tools = getToolTable().getNumberOfTools() > 0 ? getToolList("diameter") : [];
+      for (var tool of tools) {
+        tool = tool.tool;
+        var comment = "T" + toolFormat.format(tool.number) + " " +
+        "D=" + xyzFormat.format(tool.diameter) + " " +
+        localize("CR") + "=" + xyzFormat.format(tool.cornerRadius);
+        if ((tool.taperAngle > 0) && (tool.taperAngle < Math.PI)) {
+          comment += " " + localize("TAPER") + "=" + taperFormat.format(tool.taperAngle) + localize("deg");
         }
-        writeln("");
+        if (zRanges[tool.number]) {
+          comment += " - " + localize("ZMIN") + "=" + xyzFormat.format(zRanges[tool.number].getMinimum());
+        }
+        comment += " - " + getToolTypeName(tool.type);
+        comment += " - L=" + xyzFormat.format(tool.bodyLength) + "/" + xyzFormat.format(tool.bodyLength + tool.holderLength);
+        writeComment(comment);
       }
+      writeln("");
     }
   }
 }
