@@ -486,7 +486,8 @@ var settings = {
   probing: {
     macroCall              : gFormat.format(65), // specifies the command to call a macro
     probeAngleMethod       : "OFF", // supported options are: OFF, AXIS_ROT, G68, G54.4
-    allowIndexingWCSProbing: false // specifies that probe WCS with tool orientation is supported
+    allowIndexingWCSProbing: false, // specifies that probe WCS with tool orientation is supported
+    probeOn                : false // whether the probe is activated for probing
   },
   maximumSequenceNumber       : undefined, // the maximum sequence number (Nxxx), use 'undefined' for unlimited
   supportsTCP                 : false, // specifies if the postprocessor does support TCP
@@ -757,10 +758,13 @@ function onSection() {
   if (isProbeOperation()) {
     validate(settings.probing.probeAngleMethod != "G68", "You cannot probe while G68 Rotation is in effect.");
     validate(settings.probing.probeAngleMethod != "G54.4", "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
-    if (getProperty("probingType") == "Renishaw") {
-      writeBlock(gFormat.format(65), "P" + 8832); // spin the probe on
-    } else {
-      writeBlock(gFormat.format(65), "P" + 8703, "X" + 0, "A0", "M1"); // Zero move to turn on probe
+    if (! settings.probing.probeOn) {
+      if (getProperty("probingType") == "Renishaw") {
+        writeBlock(gFormat.format(65), "P" + 8832); // spin the probe on
+      } else {
+        writeBlock(gFormat.format(65), "P" + 8703, "X" + 0, "A0", "M1"); // Zero move to turn on probe
+      }
+      settings.probing.probeOn = true;
     }
     inspectionCreateResultsFileHeader();
   }
@@ -2162,13 +2166,18 @@ function onSectionEnd() {
     setCoolant(COOLANT_OFF);
   }
   if (isProbeOperation()) {
-    if (getProperty("probingType") == "Renishaw") {
-      writeBlock(gFormat.format(65), "P" + 8833); // spin the probe off
-    } else {
-      writeBlock(gFormat.format(65), "P" + 8703, "X" + 0, "A0", "M2"); // Zero move to turn off probe
-    }
-    if (settings.probing.probeAngleMethod != "G68") {
-      setProbeAngle(); // output probe angle rotations if required
+    if (!hasNextSection() || !(isProbeOperation(getNextSection()) && (getNextSection().getTool().number == tool.number))) {
+      // Turn off probe UNLESS next op is another probe with the same tool
+      if (getProperty("probingType") == "Renishaw") {
+        writeBlock(gFormat.format(65), "P" + 8833); // spin the probe off
+      } else {
+        writeBlock(gFormat.format(65), "P" + 8703, "X" + 0, "A0", "M2"); // Zero move to turn off probe
+      }
+      settings.probing.probeOn = false;
+
+      if (settings.probing.probeAngleMethod != "G68") {
+        setProbeAngle(); // output probe angle rotations if required
+      }
     }
   }
   forceAny();
