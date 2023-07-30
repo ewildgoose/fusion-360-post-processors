@@ -2135,6 +2135,10 @@ var mapCommand = {
 
 function onCommand(command) {
   switch (command) {
+  case COMMAND_CLEAN:
+    writeBlock(mFormat.format(washdownCoolant.on));
+    writeBlock(mFormat.format(washdownCoolant.off));
+    return;
   case COMMAND_COOLANT_OFF:
     setCoolant(COOLANT_OFF);
     return;
