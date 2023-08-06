@@ -623,6 +623,8 @@ function onOpen() {
   } else {
     error(localize("Program name has not been specified."));
   }
+  var d = new Date(); // output current date and time
+  writeComment(localize("Date ") + d.toISOString());
 
   sequenceNumber = getProperty("sequenceNumberStart");
 
