@@ -626,6 +626,8 @@ function onOpen() {
     error(localize("Program name has not been specified."));
     return;
   }
+  var d = new Date(); // output current date and time
+  writeComment(localize("Date ") + d.toISOString());
 
   sequenceNumber = getProperty("sequenceNumberStart");
 
