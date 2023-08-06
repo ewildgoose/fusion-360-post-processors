@@ -2454,6 +2454,23 @@ function parseChoice() {
   return stat;
 }
 
+function writeStock() {
+  if (hasGlobalParameter("stock")) {
+    var stock = getGlobalParameter("stock");
+    var x = xyzFormat.format(getGlobalParameter("stock-upper-x") - getGlobalParameter("stock-lower-x"));
+    var y = xyzFormat.format(getGlobalParameter("stock-upper-y") - getGlobalParameter("stock-lower-y"));
+    var z = xyzFormat.format(getGlobalParameter("stock-upper-z") - getGlobalParameter("stock-lower-z"));
+    writeComment("Stock Size")
+    writeComment("X" + x + " Y" + y + " Z" + z);
+    writeln("");
+    writeComment("WCS Location")
+    writeComment("X Min " + xyzFormat.format(getGlobalParameter("stock-lower-x")) + " Max " + xyzFormat.format(getGlobalParameter("stock-upper-x")));
+    writeComment("Y Min " + xyzFormat.format(getGlobalParameter("stock-lower-y")) + " Max " + xyzFormat.format(getGlobalParameter("stock-upper-y")));
+    writeComment("Z Min " + xyzFormat.format(getGlobalParameter("stock-lower-z")) + " Max " + xyzFormat.format(getGlobalParameter("stock-upper-z")));
+    writeln("");
+  }
+}
+
 // Format and write a multiline text string as a comment
 function writeNotes(text) {
   if (text) {
@@ -3608,6 +3625,9 @@ function writeProgramHeader() {
       }
     }
   }
+
+  // Write stock
+  writeStock();
 }
 // <<<<< INCLUDED FROM include_files/writeProgramHeader.cpi
 
