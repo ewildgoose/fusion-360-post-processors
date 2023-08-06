@@ -3552,6 +3552,9 @@ properties.writeTools = {
   scope      : "post"
 };
 function writeProgramHeader() {
+  writeComment("File: " + getGlobalParameter("document-path"));
+  writeComment("Date: " + getGlobalParameter("generated-at"));
+
   // Any job notes
   if (getProperty("showNotes")) {
     writeSetupNotes();
