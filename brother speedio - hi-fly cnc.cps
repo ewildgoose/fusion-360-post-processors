@@ -45,6 +45,8 @@ allowHelicalMoves = true;
 allowedCircularPlanes = undefined;
 highFeedrate = (unit == MM) ? 5000 : 200;
 probeMultipleFeatures = true;
+// Prepend / on probe lines to allow skip with B.SKP
+probeOutputAsOptional = false;
 
 // user-defined properties
 properties = {
@@ -710,7 +712,7 @@ function printProbeResults() {
 
 function onSection() {
   var forceSectionRestart = optionalSection && !currentSection.isOptional();
-  optionalSection = currentSection.isOptional();
+  optionalSection = currentSection.isOptional() || (isProbeOperation() && probeOutputAsOptional);
   var insertToolCall = isToolChangeNeeded("number") || forceSectionRestart;
   var newWorkOffset = isNewWorkOffset() || forceSectionRestart;
   var newWorkPlane = isNewWorkPlane() || forceSectionRestart || (typeof defineWorkPlane == "function" &&
