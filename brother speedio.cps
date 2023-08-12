@@ -31,6 +31,9 @@ setCodePage("ascii");
 capabilities = CAPABILITY_MILLING | CAPABILITY_MACHINE_SIMULATION;
 tolerance = spatial(0.002, MM);
 
+// Turn on optimisations for production, trade speed for safety, etc
+productionMode = false;
+
 minimumChordLength = spatial(0.25, MM);
 minimumCircularRadius = spatial(0.01, MM);
 maximumCircularRadius = spatial(1000, MM);
@@ -750,15 +753,11 @@ function onSection() {
 
   setSmoothing(smoothing.isAllowed);
 
-  // prepositioning
-  var initialPosition = getFramePosition(currentSection.getInitialPosition());
-  var isRequired = insertToolCall || retracted || !lengthCompensationActive  || (!isFirstSection() && getPreviousSection().isMultiAxis());
-  writeInitialPositioning(initialPosition, isRequired);
-
   // write parametric feedrate table
   if (typeof initializeParametricFeeds == "function") {
     initializeParametricFeeds(insertToolCall);
   }
+
   if (isProbeOperation()) {
     validate(settings.probing.probeAngleMethod != "G68", "You cannot probe while G68 Rotation is in effect.");
     validate(settings.probing.probeAngleMethod != "G54.4", "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
@@ -772,6 +771,11 @@ function onSection() {
     }
     inspectionCreateResultsFileHeader();
   }
+
+  // prepositioning
+  var initialPosition = getFramePosition(currentSection.getInitialPosition());
+  var isRequired = insertToolCall || retracted || !lengthCompensationActive  || (!isFirstSection() && getPreviousSection().isMultiAxis());
+  writeInitialPositioning(initialPosition, isRequired);
 }
 
 function onDwell(seconds) {
@@ -803,20 +807,21 @@ function approach(value) {
   return (value == "positive") ? 1 : -1;
 }
 
-function protectedProbeMove(_cycle, x, y, z) {
+function protectedProbeMove(cycle, x, y, z) {
   var _x = xOutput.format(x);
   var _y = yOutput.format(y);
   var _z = zOutput.format(z);
+  var cycleFeedrate = cycle ? cycle.feedrate : highFeedrate;
   var _code = getProperty("probingType") == "Renishaw" ? 8810 : 8703;
   var _probeParams = getProperty("probingType") == "Renishaw" ? "" : "A1 M3";
   if (_z && z >= getCurrentPosition().z) {
-    writeBlock(gFormat.format(65), "P" + _code, _probeParams, _z, getFeed(cycle.feedrate)); // protected positioning move
+    writeBlock(gFormat.format(65), "P" + _code, _probeParams, _z, getFeed(highFeedrate)); // protected positioning move
   }
   if (_x || _y) {
-    writeBlock(gFormat.format(65), "P" + _code, _probeParams, _x, _y, getFeed(highFeedrate)); // protected positioning move
+    writeBlock(gFormat.format(65), "P" + _code, _probeParams, _x, _y, getFeed(cycleFeedrate)); // protected positioning move
   }
   if (_z && z < getCurrentPosition().z) {
-    writeBlock(gFormat.format(65), "P" + _code, _probeParams, _z, getFeed(cycle.feedrate)); // protected positioning move
+    writeBlock(gFormat.format(65), "P" + _code, _probeParams, _z, getFeed(cycleFeedrate)); // protected positioning move
   }
 }
 
@@ -2065,10 +2070,11 @@ function onCycleEnd() {
   if (isProbeOperation()) {
     zOutput.reset();
     gMotionModal.reset();
+    var feed = getFeed(highFeedrate);
     if (getProperty("probingType") == "Renishaw") {
-      writeBlock(gFormat.format(65), "P" + 8810, zOutput.format(cycle.retract)); // protected retract move
+      writeBlock(gFormat.format(65), "P" + 8810, zOutput.format(cycle.retract), feed); // protected retract move
     } else {
-      writeBlock(gFormat.format(65), "P" + 8703, "A1", "M3", zOutput.format(cycle.retract)); // protected retract move
+      writeBlock(gFormat.format(65), "P" + 8703, "A1", "M3", zOutput.format(cycle.retract), feed); // protected retract move
     }
   } else if (!cycleExpanded) {
     writeBlock(gCycleModal.format(80));
@@ -3544,7 +3550,11 @@ function onRapid(_x, _y, _z) {
       error(localize("Radius compensation mode cannot be changed at rapid traversal."));
       return;
     }
-    writeBlock(gMotionModal.format(0), x, y, z);
+    if(settings.probing.probeOn && !productionMode) {
+      protectedProbeMove(undefined, _x, _y, _z);
+    } else {
+      writeBlock(gMotionModal.format(0), x, y, z);
+    }
     forceFeed();
   }
 }
@@ -3891,11 +3901,17 @@ function writeInitialPositioning(position, isRequired, codes1, codes2) {
   validate(lengthCompensationActive, "Tool length compensation is not active."); // make sure that lenght compensation is enabled
   if (!isRequired) { // simple positioning
     var modalCodes = formatWords(gAbsIncModal.format(90), gPlaneModal.format(17));
-    if (!retracted && xyzFormat.getResultingValue(getCurrentPosition().z) < xyzFormat.getResultingValue(position.z)) {
-      writeBlock(modalCodes, gMotionModal.format(motionCode), zOutput.format(position.z), feed);
+    if (!settings.probing.probeOn || productionMode) {
+      if (!retracted && xyzFormat.getResultingValue(getCurrentPosition().z) < xyzFormat.getResultingValue(position.z)) {
+        writeBlock(modalCodes, gMotionModal.format(motionCode), zOutput.format(position.z), feed);
+      }
+      forceXYZ();
+      writeBlock(modalCodes, gMotionModal.format(motionCode), xOutput.format(position.x), yOutput.format(position.y), feed, additionalCodes);
+    } else {
+      forceXYZ();
+      writeBlock(modalCodes, feed, additionalCodes);
+      protectedProbeMove(undefined, position.x, position.y, position.z);
     }
-    forceXYZ();
-    writeBlock(modalCodes, gMotionModal.format(motionCode), xOutput.format(position.x), yOutput.format(position.y), feed, additionalCodes);
   }
 }
 
