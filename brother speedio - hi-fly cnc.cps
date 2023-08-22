@@ -46,7 +46,7 @@ minimumCircularSweep = toRad(0.01);
 maximumCircularSweep = toRad(360);
 allowHelicalMoves = true;
 allowedCircularPlanes = undefined;
-highFeedrate = (unit == MM) ? 5000 : 200;
+highFeedrate = (unit == MM) ? 20000 : 780;
 probeMultipleFeatures = true;
 // Prepend / on probe lines to allow skip with B.SKP
 probeOutputAsOptional = false;
