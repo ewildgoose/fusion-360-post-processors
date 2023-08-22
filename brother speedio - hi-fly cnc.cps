@@ -350,6 +350,14 @@ properties = {
     value      : false,
     scope      : "machine"
   },
+  separateZOnToolChange: {
+    title      : "Tool change G100 moves in XY, then Z",
+    description: "Non Speedio devices with a fixed tool change position will travel in a straight line if false. When true, they make a dog leg across XY first, then Z",
+    group      : "homePositions",
+    type       : "boolean",
+    value      : false,
+    scope      : "post"
+  },
   measureTools: {
     title      : "Optionally measure tools at start",
     description: "Measure each tool used at the beginning of the program when block delete is turned off.",
@@ -2235,12 +2243,13 @@ function onCommand(command) {
     var abc = settings.workPlaneMethod.useTiltedWorkplane ? undefined : defineWorkPlane(currentSection, false);
     var start = getFramePosition(currentSection.getInitialPosition());
     var preloadTool = getNextTool(tool.number != getFirstTool().number);
+    var separateZOnToolChange = getProperty("separateZOnToolChange");
     writeToolBlock(gFormat.format(100),
       "T" + toolFormat.format(tool.number),
       xOutput.format(start.x),
       yOutput.format(start.y),
       getOffsetCode(),
-      zOutput.format(start.z),
+      !separateZOnToolChange ? zOutput.format(start.z) : undefined,
       abc ? aOutput.format(abc.x) : undefined,
       abc ? bOutput.format(abc.y) : undefined,
       abc ? cOutput.format(abc.z) : undefined,
@@ -2251,6 +2260,12 @@ function onCommand(command) {
       rotateSpindle ? mFormat.format(tool.clockwise ? 3 : 4) : "",
       coolantCodes
     );
+    if (separateZOnToolChange) {
+      writeBlock(gFormat.format(43),
+        zOutput.format(start.z),
+        hFormat.format(tool.lengthOffset)
+      );
+    }
     writeComment(tool.comment);
     currentWorkPlaneABC = abc ? abc : currentWorkPlaneABC; // workplane is set with the G100 command
 
