@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44083 865c6f1c385b9194ab63e73899f0a4787fce12a6 $
-  $Date: 2023-08-14 12:16:17 $
+  $Revision: 44085 0d356f7dbc3a8678e5efec7292882cf31894a0dc $
+  $Date: 2023-08-21 13:38:31 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -214,6 +214,14 @@ properties = {
     ],
     value: "G53",
     scope: "post"
+  },
+  useTiltedWorkplane: {
+    title      : "Use G68.2",
+    description: "Enable to use G68.2 for 3+2 operations.",
+    group      : "multiAxis",
+    type       : "boolean",
+    value      : false,
+    scope      : "post"
   },
   singleResultsFile: {
     title      : "Create single results file",
@@ -432,12 +440,10 @@ function onOpen() {
   }
   activateMachine(); // enable the machine optimizations and settings
 
-  if (settings.workPlaneMethod.useTiltedWorkplane) {
-    error(localize("Tilted workplanes are not supported by this postprocessor."));
-  }
   if (!getProperty("separateWordsWithSpace")) {
     setWordSeparator("");
   }
+
   if (getProperty("useRadius")) {
     maximumCircularSweep = toRad(90); // avoid potential center calculation errors for CNC
   }
@@ -455,12 +461,10 @@ function onOpen() {
   }
 
   if (programName) {
-    writeComment(programName + conditional(programComment, " (" + programComment + ")"));
+    writeComment(programName + conditional(programComment, SP + formatComment(programComment)));
   } else {
     error(localize("Program name has not been specified."));
-    return;
   }
-
   writeProgramHeader();
   // absolute coordinates and feed per min
   writeBlock(gMotionModal.format(0), gAbsIncModal.format(90), gFormat.format(40), gFormat.format(80));
@@ -541,6 +545,9 @@ function onSection() {
   if (insertToolCall) {
     if (tool.manualToolChange) {
       error(localize("Manual tool change is not supported by this postprocessor."));
+    }
+    if (settings.workPlaneMethod.useTiltedWorkplane) {
+      defineWorkPlane(currentSection, true);
     }
     // G100 tool call macro does handle retract, initial positioning XYZABC and starts the spindle
     retracted = true;
@@ -1563,7 +1570,7 @@ function onCommand(command) {
     // Output modal commands here
     writeBlock(gPlaneModal.format(17), gAbsIncModal.format(90), gFeedModeModal.format(94));
 
-    var abc = defineWorkPlane(currentSection, false);
+    var abc = settings.workPlaneMethod.useTiltedWorkplane ? undefined : defineWorkPlane(currentSection, false);
     var start = getFramePosition(currentSection.getInitialPosition());
     var preloadTool = getNextTool(tool.number != getFirstTool().number);
     writeToolBlock(gFormat.format(100),
@@ -1581,7 +1588,7 @@ function onCommand(command) {
       conditional(tool.type != TOOL_PROBE, sOutput.format(spindleSpeed)),
       conditional(tool.type != TOOL_PROBE, mFormat.format(tool.clockwise ? 3 : 4))
     );
-    currentWorkPlaneABC = abc; // workplane is set with the G100 command
+    currentWorkPlaneABC = abc ? abc : currentWorkPlaneABC; // workplane is set with the G100 command
     writeComment(tool.comment);
 
     forceSpindleSpeed = false;
