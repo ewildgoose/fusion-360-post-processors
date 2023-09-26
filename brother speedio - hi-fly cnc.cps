@@ -797,7 +797,9 @@ function onSection() {
 
   forceAny();
 
-  setProbeAngle(); // output probe angle rotations if required
+  if (!isProbeOperation()) {
+    setProbeAngle(); // output probe angle rotations if required
+  }
 
   setCoolant(tool.coolant); // writes the required coolant codes
   // add dwell for through coolant if needed
@@ -817,7 +819,7 @@ function onSection() {
   }
 
   if (isProbeOperation()) {
-    validate(probeVariables.probeAngleMethod != "G68", "You cannot probe while G68 Rotation is in effect.");
+    // validate(probeVariables.probeAngleMethod != "G68", "You cannot probe while G68 Rotation is in effect.");
     validate(probeVariables.probeAngleMethod != "G54.4", "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
     if (! settings.probing.probeOn) {
       if (getProperty("probingType") == "Renishaw") {
