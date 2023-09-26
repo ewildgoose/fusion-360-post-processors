@@ -779,7 +779,7 @@ function onSection() {
       if (getProperty("probingType") == "Renishaw") {
         writeBlock(gFormat.format(65), "P" + 8832); // spin the probe on
       } else {
-        writeBlock(gFormat.format(65), "P" + 8703, "A0", "M1", "X" + 0); // Zero move to turn on probe
+        writeBlock(gFormat.format(65), "P" + 8703, "A1", "M1", "X" + "[#5001]"); // Zero move to turn on probe
       }
       settings.probing.probeOn = true;
     }
@@ -2324,7 +2324,7 @@ function onSectionEnd() {
       if (getProperty("probingType") == "Renishaw") {
         writeBlock(gFormat.format(65), "P" + 8833); // spin the probe off
       } else {
-        writeBlock(gFormat.format(65), "P" + 8703, "A0", "M2", "X" + 0); // Zero move to turn off probe
+        writeBlock(gFormat.format(65), "P" + 8703, "A1", "M2", "X" + "[#5001]"); // Zero move to turn off probe
       }
       settings.probing.probeOn = false;
 
