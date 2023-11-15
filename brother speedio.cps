@@ -309,7 +309,7 @@ properties = {
     group      : "homePositions",
     type       : "enum",
     values     : [
-      // {title:"G28", id: "G28"},
+      {title:"G28", id: "G28"},
       {title:"G53", id:"G53"},
       {title:"Clearance Height", id:"clearanceHeight"}
     ],
@@ -469,7 +469,7 @@ var settings = {
   retract: {
     cancelRotationOnRetracting: false, // specifies that rotations (G68) need to be canceled prior to retracting
     methodXY                  : undefined, // special condition, overwrite retract behavior per axis
-    methodZ                   : "G28", // special condition, overwrite retract behavior per axis
+    methodZ                   : getProperty("safePositionMethod"), // special condition, overwrite retract behavior per axis
     useZeroValues             : ["G28", "G30"] // enter property value id(s) for using "0" value instead of machineConfiguration axes home position values (ie G30 Z0)
   },
   parametricFeeds: {
@@ -2208,6 +2208,7 @@ function onCommand(command) {
       );
     }
     currentWorkPlaneABC = abc ? abc : currentWorkPlaneABC; // workplane is set with the G100 command
+    setCurrentABC(abc); // required for machine simulation
     writeComment(tool.comment);
 
     if (measureTool) {
@@ -2350,7 +2351,7 @@ function onClose() {
     }
     setCoolant(COOLANT_OFF);
 
-    if (getProperty("partsCounter")) {
+    if (getProperty("partsCounter211")) {
       writeComment("ACTIVATE PARTS COUNTER");
       writeBlock("M211");
     }
@@ -3921,6 +3922,10 @@ function writeRetract() {
       forceModals(gMotionModal);
       writeBlock(gAbsIncModal.format(90), gFormat.format(53), gMotionModal.format(0), retract.words);
       break;
+    case "clearanceHeight":
+        forceModals(gMotionModal, gAbsIncModal);
+        writeBlock(gAbsIncModal.format(90));
+        break;
     default:
       if (typeof writeRetractCustom == "function") {
         writeRetractCustom(retract);
