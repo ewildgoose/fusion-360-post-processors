@@ -309,7 +309,7 @@ properties = {
     group      : "homePositions",
     type       : "enum",
     values     : [
-      // {title:"G28", id: "G28"},
+      {title:"G28", id: "G28"},
       {title:"G53", id:"G53"},
       {title:"Clearance Height", id:"clearanceHeight"}
     ],
@@ -471,7 +471,7 @@ var settings = {
   retract: {
     cancelRotationOnRetracting: false, // specifies that rotations (G68) need to be canceled prior to retracting
     methodXY                  : undefined, // special condition, overwrite retract behavior per axis
-    methodZ                   : "G28", // special condition, overwrite retract behavior per axis
+    methodZ                   : getProperty("safePositionMethod"), // special condition, overwrite retract behavior per axis
     useZeroValues             : ["G28", "G30"] // enter property value id(s) for using "0" value instead of machineConfiguration axes home position values (ie G30 Z0)
   },
   parametricFeeds: {
@@ -2936,9 +2936,9 @@ function getRetractParameters() {
   var retractAxes = new Array(false, false, false);
   var method = getProperty("safePositionMethod", "undefined");
   if (method == "clearanceHeight") {
-    if (!is3D()) {
-      error(localize("Safe retract option 'Clearance Height' is only supported when all operations are along the setup Z-axis."));
-    }
+    // if (!is3D()) {
+    //   error(localize("Safe retract option 'Clearance Height' is only supported when all operations are along the setup Z-axis."));
+    // }
     return undefined;
   }
   validate(settings.retract, "Setting 'retract' is required but not defined.");
@@ -3935,6 +3935,10 @@ function writeRetract() {
     case "G53":
       forceModals(gMotionModal);
       writeBlock(gAbsIncModal.format(90), gFormat.format(53), gMotionModal.format(0), retract.words);
+      break;
+    case "clearanceHeight":
+      forceModals(gMotionModal, gAbsIncModal);
+      writeBlock(gAbsIncModal.format(90));
       break;
     default:
       if (typeof writeRetractCustom == "function") {
