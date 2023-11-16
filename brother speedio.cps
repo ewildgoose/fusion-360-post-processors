@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44085 0d356f7dbc3a8678e5efec7292882cf31894a0dc $
-  $Date: 2023-08-21 13:38:31 $
+  $Revision: 44093 5afed19dc47d472ae5e33114f06fb8010607587f $
+  $Date: 2023-10-23 08:54:40 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -577,6 +577,10 @@ function onSection() {
   }
 
   setSmoothing(smoothing.isAllowed);
+
+  if (tool.type != TOOL_PROBE && isFirstSection() && (getProperty("washdownCoolant") == "always")) {
+    writeBlock(mFormat.format(washdownCoolant.on));
+  }
 
   // prepositioning
   var initialPosition = getFramePosition(currentSection.getInitialPosition());
