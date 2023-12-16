@@ -2218,6 +2218,9 @@ function onCommand(command) {
       );
     }
     currentWorkPlaneABC = abc ? abc : currentWorkPlaneABC; // workplane is set with the G100 command
+    if (abc != undefined) {
+      setCurrentABC(abc); // required for machine simulation
+    }
     writeComment(tool.comment);
 
     if (measureTool) {
