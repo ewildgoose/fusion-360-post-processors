@@ -1,11 +1,11 @@
 /**
-  Copyright (C) 2012-2023 by Autodesk, Inc.
+  Copyright (C) 2012-2024 by Autodesk, Inc.
   All rights reserved.
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44104 165ed1a9c77e5601dab85a96f32381c0b4a83b25 $
-  $Date: 2023-12-14 12:10:48 $
+  $Revision: 44106 d36ed136b4f89260da95024315b61a1e252ff024 $
+  $Date: 2024-01-08 09:02:30 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -13,7 +13,7 @@
 description = "Brother Speedio";
 vendor = "Brother";
 vendorUrl = "http://www.brother.com";
-legal = "Copyright (C) 2012-2023 by Autodesk, Inc.";
+legal = "Copyright (C) 2012-2024 by Autodesk, Inc.";
 certificationLevel = 2;
 minimumRevision = 45917;
 
@@ -1596,6 +1596,9 @@ function onCommand(command) {
       conditional(tool.type != TOOL_PROBE, mFormat.format(tool.clockwise ? 3 : 4))
     );
     currentWorkPlaneABC = abc ? abc : currentWorkPlaneABC; // workplane is set with the G100 command
+    if (abc != undefined) {
+      setCurrentABC(abc); // required for machine simulation
+    }
     writeComment(tool.comment);
 
     forceSpindleSpeed = false;
