@@ -36,6 +36,7 @@ productionMode = false;
 // Probe related
 measureToolMaxDiameter = toPreciseUnit(20, MM);
 measureAllFlutes = true;
+measureProbe = false;
 
 minimumChordLength = spatial(0.25, MM);
 minimumCircularRadius = spatial(0.01, MM);
@@ -1999,7 +2000,7 @@ function writeMeasureTools() {
       writeComment(localize("Once the tools are verified turn B SKIP on to skip verification"));
       for (var i = 0; i < tools.getNumberOfTools(); ++i) {
         var tool = tools.getTool(i);
-        if (getProperty("measureTools") && (tool.type == TOOL_PROBE)) {
+        if ((tool.type == TOOL_PROBE) && !measureProbe) {
           continue;
         }
         var comment = "T" + toolFormat.format(tool.number) + " " +
