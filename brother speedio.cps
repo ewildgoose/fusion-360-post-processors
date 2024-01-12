@@ -57,7 +57,7 @@ properties = {
     description: "Preloads the next tool at a tool change (if any).",
     group      : "preferences",
     type       : "boolean",
-    value      : true,
+    value      : false,
     scope      : "post"
   },
   showSequenceNumbers: {
@@ -70,7 +70,7 @@ properties = {
       {title:"No", id:"false"},
       {title:"Only on tool change", id:"toolChange"}
     ],
-    value: "true",
+    value: "toolChange",
     scope: "post"
   },
   sequenceNumberStart: {
@@ -118,7 +118,7 @@ properties = {
     description: "Writes operation notes as comments in the outputted code.",
     group      : "formats",
     type       : "boolean",
-    value      : false,
+    value      : true,
     scope      : "post"
   },
   partsCounter211: {
@@ -192,7 +192,7 @@ properties = {
       {title:"End of operation", id:"operationEnd"},
       {title:"Program end", id:"programEnd"}
     ],
-    value: "off",
+    value: "programEnd",
     scope: "post"
   },
   usePitchForTapping: {
@@ -208,7 +208,7 @@ properties = {
     description: "If enabled, an L value containing double the spindle speed (up to 6000) will be output in the G77 tapping cycle.",
     group      : "preferences",
     type       : "boolean",
-    value      : false,
+    value      : true,
     scope      : "post"
   },
   tapAccel: {
