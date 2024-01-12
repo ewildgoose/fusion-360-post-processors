@@ -38,6 +38,9 @@ if (typeof revision == "number" && typeof supportedFeatures != "undefined") {
 
 // Turn on optimisations for production, trade speed for safety, etc
 productionMode = false;
+// Probe related
+measureToolMaxDiameter = toPreciseUnit(20, MM);
+measureAllFlutes = true;
 
 minimumChordLength = spatial(0.25, MM);
 minimumCircularRadius = spatial(0.01, MM);
@@ -2154,6 +2157,8 @@ function writeToolMeasureBlock(tool, preMeasure) {
   if (!preMeasure) {
     prepareForToolCheck();
   }
+
+  var offsetTool = (tool.type == TOOL_MILLING_SLOT || tool.type == TOOL_MILLING_FACE) && (tool.diameter > measureToolMaxDiameter);
   if (getProperty("probingType") == "Renishaw") {
     // Renishaw untested
     writeBlock(
@@ -2172,8 +2177,10 @@ function writeToolMeasureBlock(tool, preMeasure) {
       "P8915",
       "B0.",
       "H" + toolFormat.format(tool.number),
-      // Offset facemills (type 9) by tool radius
-      conditional(tool.type == 9, "R" + xyzFormat.format(tool.diameter / 2)),
+      // Offset (larger) face/slot-mills by tool radius
+      conditional(offsetTool, "R" + xyzFormat.format(tool.diameter / 2)),
+      // Measure all flutes
+      conditional(tool.type == TOOL_MILLING_FACE && measureAllFlutes && offsetTool, "D" + tool.numberOfFlutes),
       comment
     ); // probe tool
   }
@@ -2334,6 +2341,7 @@ function onCommand(command) {
       writeln("");
       writeComment("Performing tool break detection");
       prepareForToolCheck();
+      var offsetTool = tool.type == (TOOL_MILLING_SLOT || tool.type == TOOL_MILLING_FACE) && (tool.diameter > measureToolMaxDiameter);
       if (getProperty("probingType") == "Renishaw") {
         writeBlock(
           gFormat.format(65),
@@ -2347,7 +2355,11 @@ function onCommand(command) {
           gFormat.format(65),
           "P" + 8915,
           "B2",
-          "Q" + xyzFormat.format(getProperty("toolBreakageTolerance"))
+          "Q" + xyzFormat.format(getProperty("toolBreakageTolerance")),
+          // Offset (larger) face/slot-mills by tool radius
+          conditional(offsetTool, "R" + xyzFormat.format(tool.diameter / 2)),
+          // Measure all flutes
+          conditional(tool.type == TOOL_MILLING_FACE && measureAllFlutes && offsetTool, "D" + tool.numberOfFlutes)
         );
       }
       toolChecked = true;
