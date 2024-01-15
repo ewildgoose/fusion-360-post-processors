@@ -291,6 +291,14 @@ properties = {
     value      : "stock",
     scope      : "post"
   },
+  rapidTransitions: {
+    title      : "Disable smoothing during transitions",
+    description: "Turn off accuracy modes during leads in/out and non cutting moves. Generally faster, but beware moves may deviate from simulation. ONLY useable with M298. Currently only affects Adaptive & 2D Pocket",
+    group      : "preferences",
+    type       : "boolean",
+    value      : false,
+    scope      : "post"
+  },
   toolBreakageTolerance: {
     title      : "Tool breakage tolerance",
     description: "Specifies the tolerance for which tool break detection will raise an alarm.",
@@ -2413,6 +2421,23 @@ function onClose() {
   setSmoothing(false);
   setWorkPlane(new Vector(0, 0, 0)); // reset working plane
   writeBlock(mFormat.format(30)); // stop program, spindle stop, coolant off
+}
+
+function onMovement(movement) {
+  if ((currentSection.strategy == "adaptive" || currentSection.strategy == "adaptive2d" || currentSection.strategy == "pocket2d") && getProperty("rapidTransitions")) {
+    if (getProperty("smoothingMode") != "M298") {
+      error(localize("Rapid transitions can only be used in M298 accuracy mode"));
+    }
+    // During non engaged moves, including leads, we turn off accuracy modes, leading to generally faster movements. Restore after
+    if (movement == MOVEMENT_LEAD_IN || movement == MOVEMENT_LEAD_OUT || movement == MOVEMENT_LINK_DIRECT || movement == MOVEMENT_LINK_DIRECT) {
+      if (smoothing.isActive) {
+        writeComment("Force smoothing off");
+      }
+      setSmoothing(false);
+    } else {
+      setSmoothing(smoothing.isAllowed);
+    }
+  }
 }
 
 function onParameter(name, value) {
