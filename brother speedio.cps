@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44106 d36ed136b4f89260da95024315b61a1e252ff024 $
-  $Date: 2024-01-08 09:02:30 $
+  $Revision: 44107 aa206efdfeb152acd6d4801ed52d251cc2e2708d $
+  $Date: 2024-01-11 09:05:11 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -283,7 +283,7 @@ var gCycleModal = createOutputVariable({control:CONTROL_FORCE}, gFormat); // mod
 var gRetractModal = createOutputVariable({}, gFormat); // modal group 10 // G98-99
 var gRotationModal = createOutputVariable({
   onchange: function () {
-    if (settings.probing.probeAngleMethod == "G68") {
+    if (probeVariables.probeAngleMethod == "G68") {
       probeVariables.outputRotationCodes = true;
     }
   }
@@ -356,7 +356,8 @@ var settings = {
   },
   probing: {
     macroCall              : gFormat.format(65), // specifies the command to call a macro
-    probeAngleMethod       : "OFF", // supported options are: OFF, AXIS_ROT, G68, G54.4
+    probeAngleMethod       : undefined, // supported options are: OFF, AXIS_ROT, G68, G54.4. 'undefined' uses automatic selection
+    probeAngleVariables    : {x:"#135", y:"#136", z:0, i:0, j:0, k:1, r:"#144", baseParamG54x4:26000, baseParamAxisRot:5200, method:0}, // specifies variables for the angle compensation macros, method 0 = Fanuc, 1 = Haas
     allowIndexingWCSProbing: false // specifies that probe WCS with tool orientation is supported
   },
   maximumSequenceNumber       : undefined, // the maximum sequence number (Nxxx), use 'undefined' for unlimited
@@ -369,7 +370,8 @@ var washdownCoolant = {on:400, off:401};
 
 var probeVariables = {
   outputRotationCodes: false, // determines if it is required to output rotation codes
-  compensationXY     : undefined
+  compensationXY     : undefined,
+  probeAngleMethod   : undefined
 };
 
 var compensateToolLength = false; // add the tool length to the pivot distance for nonTCP rotary heads
@@ -593,8 +595,8 @@ function onSection() {
     initializeParametricFeeds(insertToolCall);
   }
   if (isProbeOperation()) {
-    validate(settings.probing.probeAngleMethod != "G68", "You cannot probe while G68 Rotation is in effect.");
-    validate(settings.probing.probeAngleMethod != "G54.4", "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
+    validate(probeVariables.probeAngleMethod != "G68", "You cannot probe while G68 Rotation is in effect.");
+    validate(probeVariables.probeAngleMethod != "G54.4", "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
     if (getProperty("probingType") == "Renishaw") {
       writeBlock(gFormat.format(65), "P" + 8832); // spin the probe on
       inspectionCreateResultsFileHeader();
@@ -1315,7 +1317,6 @@ function writeProbeCycle(cycle, x, y, z) {
       if ((cornerI != 0) && (cornerJ != 0)) {
         if (currentSection.strategy == "probe") {
           setProbeAngleMethod();
-          probeVariables.compensationXY = "X[#135] Y[#136]";
         }
       }
       protectedProbeMove(cycle, x, y, z - cycle.depth);
@@ -1342,7 +1343,6 @@ function writeProbeCycle(cycle, x, y, z) {
     if ((cornerI != 0) && (cornerJ != 0)) {
       if (currentSection.strategy == "probe") {
         setProbeAngleMethod();
-        probeVariables.compensationXY = "X[#135] Y[#136]";
       }
     }
     protectedProbeMove(cycle, x, y, z - cycle.depth);
@@ -1651,7 +1651,7 @@ function onSectionEnd() {
   if (isProbeOperation()) {
     if (getProperty("probingType") == "Renishaw") {
       writeBlock(gFormat.format(65), "P" + 8833); // spin the probe off
-      if (settings.probing.probeAngleMethod != "G68") {
+      if (probeVariables.probeAngleMethod != "G68") {
         setProbeAngle(); // output probe angle rotations if required
       }
     }
@@ -1670,7 +1670,7 @@ function onClose() {
     }
   }
 
-  if (settings.probing.probeAngleMethod == "G68") {
+  if (probeVariables.probeAngleMethod == "G68") {
     cancelWorkPlane();
   }
   writeln("");
@@ -3312,33 +3312,40 @@ function writeProbingToolpathInformation(cycleDepth) {
 // >>>>> INCLUDED FROM include_files/setProbeAngle_fanuc.cpi
 function setProbeAngle() {
   if (probeVariables.outputRotationCodes) {
+    validate(settings.probing.probeAngleVariables, localize("Setting 'probing.probeAngleVariables' is required for angular probing."));
+    var {x: px, y: py, z: pz, i: pi, j: pj, k: pk, r: pr, baseParamG54x4, baseParamAxisRot} = settings.probing.probeAngleVariables;
     var probeOutputWorkOffset = currentSection.probeWorkOffset;
     validate(probeOutputWorkOffset <= 6, "Angular Probing only supports work offsets 1-6.");
-    if (settings.probing.probeAngleMethod == "G68" && (Vector.diff(currentSection.getGlobalInitialToolAxis(), new Vector(0, 0, 1)).length > 1e-4)) {
+    if (probeVariables.probeAngleMethod == "G68" && (Vector.diff(currentSection.getGlobalInitialToolAxis(), new Vector(0, 0, 1)).length > 1e-4)) {
       error(localize("You cannot use multi axis toolpaths while G68 Rotation is in effect."));
     }
     var validateWorkOffset = false;
-    switch (settings.probing.probeAngleMethod) {
+    switch (probeVariables.probeAngleMethod) {
     case "G54.4":
-      var param = 26000 + (probeOutputWorkOffset * 10);
-      writeBlock("#" + param + "=#135");
-      writeBlock("#" + (param + 1) + "=#136");
-      writeBlock("#" + (param + 5) + "=#144");
+      var param = baseParamG54x4 + (probeOutputWorkOffset * 10);
+      writeBlock("#" + param + "=" + px);
+      writeBlock("#" + (param + 1) + "=" + py);
+      writeBlock("#" + (param + 5) + "=" + pr);
       writeBlock(gFormat.format(54.4), "P" + probeOutputWorkOffset);
       break;
     case "G68":
       gRotationModal.reset();
       gAbsIncModal.reset();
-      var n = xyzFormat.format(0);
+      var xy = probeVariables.compensationXY || formatWords(formatCompensationParameter("X", px), formatCompensationParameter("Y", py));
       writeBlock(
         gRotationModal.format(68), gAbsIncModal.format(90),
-        probeVariables.compensationXY, "Z" + n, "I" + n, "J" + n, "K" + xyzFormat.format(1), "R[#144]"
+        xy,
+        formatCompensationParameter("Z", pz),
+        formatCompensationParameter("I", pi),
+        formatCompensationParameter("J", pj),
+        formatCompensationParameter("K", pk),
+        formatCompensationParameter("R", pr)
       );
       validateWorkOffset = true;
       break;
     case "AXIS_ROT":
-      var param = 5200 + probeOutputWorkOffset * 20 + 5;
-      writeBlock("#" + param + " = " + "[#" + param + " + #144]");
+      var param = baseParamAxisRot + probeOutputWorkOffset * 20 + probeVariables.rotaryTableAxis + 4;
+      writeBlock("#" + param + " = " + "[#" + param + " + " + pr + "]");
       forceWorkPlane(); // force workplane to rotate ABC in order to apply rotation offsets
       currentWorkOffset = undefined; // force WCS output to make use of updated parameters
       validateWorkOffset = true;
@@ -3358,15 +3365,33 @@ function setProbeAngle() {
     probeVariables.outputRotationCodes = false;
   }
 }
+
+function formatCompensationParameter(label, value) {
+  return typeof value == "string" ? label + "[" + value + "]" : typeof value == "number" ? label + xyzFormat.format(value) : "";
+}
 // <<<<< INCLUDED FROM include_files/setProbeAngle_fanuc.cpi
 // >>>>> INCLUDED FROM include_files/setProbeAngleMethod.cpi
 function setProbeAngleMethod() {
-  settings.probing.probeAngleMethod = (machineConfiguration.getNumberOfAxes() < 5 || is3D()) ? (getProperty("useG54x4") ? "G54.4" : "G68") : "UNSUPPORTED";
+  var axisRotIsSupported = false;
   var axes = [machineConfiguration.getAxisU(), machineConfiguration.getAxisV(), machineConfiguration.getAxisW()];
   for (var i = 0; i < axes.length; ++i) {
     if (axes[i].isEnabled() && isSameDirection((axes[i].getAxis()).getAbsolute(), new Vector(0, 0, 1)) && axes[i].isTable()) {
-      settings.probing.probeAngleMethod = "AXIS_ROT";
+      axisRotIsSupported = true;
+      if (settings.probing.probeAngleVariables.method == 0) { // Fanuc
+        validate(i < 2, localize("Rotary table axis is invalid."));
+        probeVariables.rotaryTableAxis = i;
+      } else { // Haas
+        probeVariables.rotaryTableAxis = axes[i].getCoordinate();
+      }
       break;
+    }
+  }
+  if (settings.probing.probeAngleMethod == undefined) {
+    probeVariables.probeAngleMethod = axisRotIsSupported ? "AXIS_ROT" : getProperty("useG54x4") ? "G54.4" : "G68"; // automatic selection
+  } else {
+    probeVariables.probeAngleMethod = settings.probing.probeAngleMethod; // use probeAngleMethod from settings
+    if (probeVariables.probeAngleMethod == "AXIS_ROT" && !axisRotIsSupported) {
+      error(localize("Setting probeAngleMethod 'AXIS_ROT' is not supported on this machine."));
     }
   }
   probeVariables.outputRotationCodes = true;
