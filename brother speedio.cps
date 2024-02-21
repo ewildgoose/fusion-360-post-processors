@@ -656,7 +656,7 @@ function onOpen() {
 
   // absolute coordinates and feed per min
   writeBlock(gMotionModal.format(0), gAbsIncModal.format(90), gFormat.format(40), gFormat.format(80));
-  writeBlock(gFeedModeModal.format(94), gFormat.format(49));
+  writeBlock(gFeedModeModal.format(94), gFormat.format(49), "Z[#5003]");
   // Convenient to emit the WCS code for the first section
   if (getNumberOfSections() > 0) {
     writeBlock(getSection(0).wcs);
@@ -2319,7 +2319,7 @@ function onSectionEnd() {
   }
 
   if (currentSection.isMultiAxis() && !currentSection.isOptimizedForMachine()) {
-    writeBlock(gFormat.format(49));
+    writeBlock(gFormat.format(49), "Z[#5003]");
   }
   writeBlock(gPlaneModal.format(17));
 
