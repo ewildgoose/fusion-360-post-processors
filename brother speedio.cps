@@ -541,6 +541,11 @@ var firstNote = true; // handles output of notes from multiple setups
 
 function defineMachine() {
   var useTCP = false;
+  // Some defaults if no machine config provided
+  if (!receivedMachineConfiguration) {
+    machineConfiguration.setHomePositionZ(toUnit(480, MM));
+  }
+
   if (getProperty("useTrunnion")) {
     var aAxis = createAxis({coordinate:0, table:true, axis:[1, 0, 0], range:[-30, 120], preference:1, tcp:useTCP});
     var cAxis = createAxis({coordinate:2, table:true, axis:[0, 0, 1], cyclic:true, tcp:useTCP});
