@@ -2998,7 +2998,7 @@ function writeBlock() {
 validate(settings.comments, "Setting 'comments' is required but not defined.");
 function formatComment(text) {
   if (!text) {
-    return;
+    return "";
   }
   var prefix = settings.comments.prefix;
   var suffix = settings.comments.suffix;
