@@ -748,6 +748,14 @@ function onSection() {
   var newWorkOffset = isNewWorkOffset() || forceSectionRestart;
   var newWorkPlane = isNewWorkPlane() || forceSectionRestart || (typeof defineWorkPlane == "function" &&
     Vector.diff(defineWorkPlane(getPreviousSection(), false), defineWorkPlane(currentSection, false)).length > 1e-4);
+
+  writeln("");
+  writeComment(getParameter("operation-comment", ""));
+
+  if (getProperty("showNotes")) {
+    writeSectionNotes();
+  }
+
   initializeSmoothing(); // initialize smoothing mode
 
   if (insertToolCall || newWorkOffset || newWorkPlane || smoothing.cancel || state.tcpIsActive || currentSection.isMultiAxis()) {
@@ -774,13 +782,6 @@ function onSection() {
   if (toolChecked) {
     forceSpindleSpeed = true; // spindle must be restarted if tool is checked without a tool change
     toolChecked = false; // state of tool is not known at the beginning of a section since it could be broken for the previous section
-  }
-
-  writeln("");
-  writeComment(getParameter("operation-comment", ""));
-
-  if (getProperty("showNotes")) {
-    writeSectionNotes();
   }
 
   // set wcs
