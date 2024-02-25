@@ -713,6 +713,14 @@ function onSection() {
   var insertToolCall = isToolChangeNeeded("number") || forceSectionRestart;
   var newWorkOffset = isNewWorkOffset() || forceSectionRestart;
   var newWorkPlane = isNewWorkPlane() || forceSectionRestart;
+
+  writeln("");
+  writeComment(getParameter("operation-comment", ""));
+
+  if (getProperty("showNotes")) {
+    writeSectionNotes();
+  }
+
   initializeSmoothing(); // initialize smoothing mode
 
   if (insertToolCall || newWorkOffset || newWorkPlane || smoothing.cancel) {
@@ -728,13 +736,6 @@ function onSection() {
   if (toolChecked) {
     forceSpindleSpeed = true; // spindle must be restarted if tool is checked without a tool change
     toolChecked = false; // state of tool is not known at the beginning of a section since it could be broken for the previous section
-  }
-
-  writeln("");
-  writeComment(getParameter("operation-comment", ""));
-
-  if (getProperty("showNotes")) {
-    writeSectionNotes();
   }
 
   // set wcs
