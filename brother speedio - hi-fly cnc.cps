@@ -36,6 +36,8 @@ if (typeof revision == "number" && typeof supportedFeatures != "undefined") {
   supportedFeatures |= revision >= 50328 ? FEATURE_MACHINE_ROTARY_ANGLES : 0;
 }
 
+// Throw an error if duplicate tools are used
+errorOnDuplicateTool = false;
 // Turn on optimisations for production, trade speed for safety, etc
 productionMode = false;
 // Probe related
@@ -4051,6 +4053,33 @@ function writeProgramHeader() {
           writeComment(comment);
         }
         writeln("");
+      }
+    }
+  }
+
+  if (errorOnDuplicateTool) {
+    // check for duplicate tool number
+    for (var i = 0; i < getNumberOfSections(); ++i) {
+      var sectioni = getSection(i);
+      var tooli = sectioni.getTool();
+      for (var j = i + 1; j < getNumberOfSections(); ++j) {
+        var sectionj = getSection(j);
+        var toolj = sectionj.getTool();
+        if (tooli.number == toolj.number) {
+          if (xyzFormat.areDifferent(tooli.diameter, toolj.diameter) ||
+              xyzFormat.areDifferent(tooli.cornerRadius, toolj.cornerRadius) ||
+              abcFormat.areDifferent(tooli.taperAngle, toolj.taperAngle) ||
+              (tooli.numberOfFlutes != toolj.numberOfFlutes)) {
+            error(
+              subst(
+                localize("Using the same tool number for different cutter geometry for operation '%1' and '%2'."),
+                sectioni.hasParameter("operation-comment") ? sectioni.getParameter("operation-comment") : ("#" + (i + 1)),
+                sectionj.hasParameter("operation-comment") ? sectionj.getParameter("operation-comment") : ("#" + (j + 1))
+              )
+            );
+            return;
+          }
+        }
       }
     }
   }
