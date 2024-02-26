@@ -400,8 +400,8 @@ wcsDefinitions = {
   ]
 };
 
-var gFormat = createFormat({prefix:"G", width:2, zeropad:true, decimals:1});
-var mFormat = createFormat({prefix:"M", width:2, zeropad:true, decimals:1});
+var gFormat = createFormat({prefix:"G", width:1, zeropad:true, decimals:1});
+var mFormat = createFormat({prefix:"M", width:1, zeropad:true, decimals:1});
 var hFormat = createFormat({prefix:"H", width:2, zeropad:true, decimals:1});
 var diameterOffsetFormat = createFormat({prefix:"D", width:2, zeropad:true, decimals:1});
 var probeWCSFormat = createFormat({decimals:0, forceDecimal:true});
