@@ -414,8 +414,8 @@ wcsDefinitions = {
   ]
 };
 
-var gFormat = createFormat({prefix:"G", minDigitsLeft:2, decimals:1});
-var mFormat = createFormat({prefix:"M", minDigitsLeft:2, decimals:1});
+var gFormat = createFormat({prefix:"G", minDigitsLeft:1, decimals:1});
+var mFormat = createFormat({prefix:"M", minDigitsLeft:1, decimals:1});
 var hFormat = createFormat({prefix:"H", minDigitsLeft:2, decimals:1});
 var diameterOffsetFormat = createFormat({prefix:"D", minDigitsLeft:2, decimals:1});
 var probeWCSFormat = createFormat({decimals:0, type:FORMAT_REAL});
