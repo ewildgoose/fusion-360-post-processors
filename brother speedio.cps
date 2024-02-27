@@ -522,11 +522,14 @@ var settings = {
   },
   maximumSequenceNumber       : undefined, // the maximum sequence number (Nxxx), use 'undefined' for unlimited
   supportsTCP                 : false, // specifies if the postprocessor does support TCP
-  outputToolLengthCompensation: false, // specifies if tool length compensation code should be output (G43)
-  outputToolLengthOffset      : false // specifies if tool length offset code should be output (Hxx)
+  outputToolLengthCompensation: true, // specifies if tool length compensation code should be output (G43)
+  outputToolLengthOffset      : true // specifies if tool length offset code should be output (Hxx)
 };
 
 var washdownCoolant = {on:400, off:401};
+
+var clampAxisCode = {a: 443, c: 445};
+var unclampAxisCode = {a: 442, c: 444};
 
 var probeVariables = {
   outputRotationCodes: false, // determines if it is required to output rotation codes
@@ -663,7 +666,7 @@ function onOpen() {
 
   // absolute coordinates and feed per min
   writeBlock(gMotionModal.format(0), gAbsIncModal.format(90), gFormat.format(40), gFormat.format(80));
-  writeBlock(gFeedModeModal.format(94), gFormat.format(49), "Z[#5003]");
+  writeBlock(gFeedModeModal.format(94), gFormat.format(49), "Z[#5003+#5083]");
   // Convenient to emit the WCS code for the first section
   if (getNumberOfSections() > 0) {
     writeBlock(getSection(0).wcs);
@@ -743,7 +746,7 @@ function onSection() {
   if (insertToolCall) {
     currentWorkOffset = undefined; // force work offset when changing tool
     wcsIsRequired = newWorkOffset || insertToolCall;
-    writeBlock(gRotationModal.format(69)); // cancel frame
+    cancelWorkPlane();
   }
   writeWCS(currentSection, wcsIsRequired);
 
@@ -2235,6 +2238,7 @@ function onCommand(command) {
       conditional(rotateSpindle, mFormat.format(tool.clockwise ? 3 : 4)),
       coolantCodes
     );
+    lengthCompensationActive = true;
     if (separateZOnToolChange) {
       writeBlock(gFormat.format(43),
         zOutput.format(start.z),
@@ -2255,8 +2259,10 @@ function onCommand(command) {
     forceSpindleSpeed = false;
     return;
   case COMMAND_LOCK_MULTI_AXIS:
+      clampAxis(undefined, true, true);
     return;
   case COMMAND_UNLOCK_MULTI_AXIS:
+      clampAxis(undefined, false, true);
     return;
   case COMMAND_START_CHIP_TRANSPORT:
     return;
@@ -2321,13 +2327,60 @@ function onCommand(command) {
   }
 }
 
+var aAxisIsClamped = true;
+var cAxisIsClamped = true;
+function clampAxis(abc, clamp, force) {
+  if (clamp) { // clamp axes
+    if (!aAxisIsClamped || force) {
+      if (aOutput.isEnabled() && clampAxisCode.a != undefined) {
+        writeBlock(mFormat.format(clampAxisCode.a), formatComment("CLAMP A-AXIS"));
+        aAxisIsClamped = true;
+      }
+    }
+    if (!cAxisIsClamped || force) {
+      if (cOutput.isEnabled() && clampAxisCode.c != undefined) {
+        writeBlock(mFormat.format(clampAxisCode.c), formatComment("CLAMP C-AXIS"));
+        cAxisIsClamped = true;
+      }
+    }
+  } else { // unclamp axes
+    var unclampA = false;
+    var unclampC = false;
+    if (!force) {
+      if (currentSection.isMultiAxis()) {
+        unclampA = abcFormat.areDifferent(currentSection.getLowerToolAxisABC().x, currentSection.getUpperToolAxisABC().x);
+        unclampC = abcFormat.areDifferent(currentSection.getLowerToolAxisABC().z, currentSection.getUpperToolAxisABC().z);
+      } else {
+        unclampA = aAxisIsClamped && abcFormat.areDifferent(abc.x, aOutput.getCurrent());
+        unclampC = cAxisIsClamped && abcFormat.areDifferent(abc.z, cOutput.getCurrent()) && !isTurningOperation;
+      }
+    }
+    if ((aAxisIsClamped && unclampA) || force) {
+      if (aOutput.isEnabled() && unclampAxisCode.a != undefined) {
+        writeBlock(mFormat.format(unclampAxisCode.a), formatComment("UNCLAMP A-AXIS"));
+        aAxisIsClamped = false;
+      }
+    }
+    if ((cAxisIsClamped && unclampC) || force) {
+      if (cOutput.isEnabled() && unclampAxisCode.c != undefined) {
+        writeBlock(mFormat.format(unclampAxisCode.c), formatComment("UNCLAMP C-AXIS"));
+        cAxisIsClamped = false;
+      }
+    }
+  }
+}
+
 function onSectionEnd() {
   if (currentSection.isMultiAxis()) {
     writeBlock(gFeedModeModal.format(94)); // inverse time feed off
   }
 
+  if (gRotationModal.getCurrent() == 68.2) {
+    cancelWorkPlane();
+  }
+
   if (currentSection.isMultiAxis() && !currentSection.isOptimizedForMachine()) {
-    writeBlock(gFormat.format(49), "Z[#5003]");
+    disableLengthCompensationBrother(true);
   }
   writeBlock(gPlaneModal.format(17));
 
@@ -2786,6 +2839,16 @@ function forceAny() {
   forceABC();
   forceFeed();
 }
+
+var lengthCompensationActive = false;
+/** Disables length compensation if currently active or if forced. */
+function disableLengthCompensationBrother(force, message) {
+  if (lengthCompensationActive || force) {
+    writeBlock(gFormat.format(49), "Z[#5003+#5083]", conditional(message, formatComment(message)));
+    lengthCompensationActive = false;
+  }
+}
+
 
 function prepareForToolCheck() {
   setCoolant(COOLANT_OFF);
@@ -3941,6 +4004,10 @@ function cancelWorkPlane(force) {
   if (typeof gRotationModal != "undefined") {
     if (force) {
       gRotationModal.reset();
+    }
+    if (gRotationModal.getCurrent() == 68.2) {
+      // When feature coordinates are in use, need to cancel all tool comp before G69
+      disableLengthCompensationBrother();
     }
     writeBlock(gRotationModal.format(69)); // cancel frame
   }
