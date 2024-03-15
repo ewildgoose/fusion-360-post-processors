@@ -497,7 +497,7 @@ var settings = {
   },
   retract: {
     cancelRotationOnRetracting: false, // specifies that rotations (G68) need to be canceled prior to retracting
-    methodXY                  : undefined, // special condition, overwrite retract behavior per axis
+    methodXY                  : "G53", // special condition, overwrite retract behavior per axis
     methodZ                   : getProperty("safePositionMethod"), // special condition, overwrite retract behavior per axis
     useZeroValues             : ["G28", "G30"], // enter property value id(s) for using "0" value instead of machineConfiguration axes home position values (ie G30 Z0)
     homeXY                    : {onIndexing:false, onToolChange:false, onProgramEnd:{axes:[X, Y]}} // Specifies when XY should be homed in XY (sample: onIndexing:[X,Y]). Options can be combined
