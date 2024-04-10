@@ -2066,6 +2066,15 @@ function writeMeasureTools() {
     optionalSection = false;
     writeln("");
   }
+
+  // Pause for operator if we did a tool measure
+  if (getProperty("measureTools") && (tools.getNumberOfTools() > 0)) {
+    optionalSection = true;
+    writeBlock(mFormat.format(0), formatComment(localize("Ready to run")));
+    optionalSection = false;
+    writeln("");
+  }
+
   // Restore setting
   setProperty("showSequenceNumbers", show);
 }
