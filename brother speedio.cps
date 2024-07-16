@@ -3864,7 +3864,7 @@ function onCircular(clockwise, cx, cy, cz, x, y, z, feed) {
     return;
   }
 
-  if ((gRotationModal.getCurrent() == 68) && (getCircularPlane() != PLANE_XY)) { // Can't switch planes while rotation active
+  if (((gRotationModal.getCurrent() == 68) || (gRotationModal.getCurrent() == 68.2)) && (getCircularPlane() != PLANE_XY)) { // Can't switch planes while rotation active
     writeComment("Linearising due to active G68 rotation");
     linearize(tolerance);
     return;
