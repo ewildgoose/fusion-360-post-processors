@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44135 ca4aa7556550b65227255ce1ffa286b951775c8a $
-  $Date: 2024-07-19 12:09:48 $
+  $Revision: 44136 958a4f328bdf1f58a6e166487214998e1f7fb2a3 $
+  $Date: 2024-07-29 13:11:00 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -3263,6 +3263,66 @@ function disableLengthCompensation(force) {
 var macroFormat = createFormat({prefix:(typeof inspectionVariables == "undefined" ? "#" : inspectionVariables.localVariablePrefix), decimals:0});
 var macroRoundingFormat =  (unit == MM) ? "[53]" : "[44]";
 var isDPRNTopen = false;
+
+var WARNING_OUTDATED = 0;
+var toolpathIdFormat = createFormat({decimals:5, forceDecimal:true});
+var patternInstances = new Array();
+var initializePatternInstances = true; // initialize patternInstances array the first time inspectionGetToolpathId is called
+function inspectionGetToolpathId(section) {
+  if (initializePatternInstances) {
+    for (var i = 0; i < getNumberOfSections(); ++i) {
+      var _section = getSection(i);
+      if (_section.getInternalPatternId) {
+        var sectionId = _section.getId();
+        var patternId = _section.getInternalPatternId();
+        var isPatterned = _section.isPatterned && _section.isPatterned();
+        var isMirrored = patternId != _section.getPatternId();
+        if (isPatterned || isMirrored) {
+          var isKnownPatternId = false;
+          for (var j = 0; j < patternInstances.length; j++) {
+            if (patternId == patternInstances[j].patternId) {
+              patternInstances[j].patternIndex++;
+              patternInstances[j].sections.push(sectionId);
+              isKnownPatternId = true;
+              break;
+            }
+          }
+          if (!isKnownPatternId) {
+            patternInstances.push({patternId:patternId, patternIndex:1, sections:[sectionId]});
+          }
+        }
+      }
+    }
+    initializePatternInstances = false;
+  }
+
+  var _operationId = section.getParameter("autodeskcam:operation-id", "");
+  var key = -1;
+  for (k in patternInstances) {
+    if (patternInstances[k].patternId == _operationId) {
+      key = k;
+      break;
+    }
+  }
+  var _patternId = (key > -1) ? patternInstances[key].sections.indexOf(section.getId()) + 1 : 0;
+  var _cycleId = cycle && ("cycleID" in cycle) ? cycle.cycleID : section.getParameter("cycleID", 0);
+  if (isProbeOperation(section) && _cycleId == 0 && getGlobalParameter("product-id").toLowerCase().indexOf("fusion") > -1) {
+    // we expect the cycleID to be non zero always for macro probing toolpaths, Fusion only
+    warningOnce(localize("Outdated macro probing operations detected. Please regenerate all macro probing operations."), WARNING_OUTDATED);
+  }
+  if (_patternId > 99) {
+    error(subst(localize("The maximum number of pattern instances is limited to 99" + EOL +
+      "You need to split operation '%1' into separate pattern groups."
+    ), section.getParameter("operation-comment", "")));
+  }
+  if (_cycleId > 99) {
+    error(subst(localize("The maximum number of probing cycles is limited to 99" + EOL +
+      "You need to split operation '%1' to multiple operations with less than 100 cycles in each operation."
+    ), section.getParameter("operation-comment", "")));
+  }
+  return toolpathIdFormat.format(_operationId + (_cycleId * 0.01) + (_patternId * 0.0001) + 0.00001);
+}
+
 var localVariableStart = 19;
 var localVariable = [
   macroFormat.format(localVariableStart + 1),
@@ -3356,6 +3416,18 @@ function inspectionWriteCADTransform() {
 function inspectionWriteWorkplaneTransform() {
   var orientation = machineConfiguration.isMultiAxisConfiguration() ? machineConfiguration.getOrientation(getCurrentDirection()) : currentSection.workPlane;
   var abc = orientation.getEuler2(EULER_XYZ_S);
+  if (getProperty("useLiveConnection")) {
+    liveConnectorInterface("WORKPLANE");
+    writeBlock(inspectionVariables.liveConnectionWPA, "=", abcFormat.format(abc.x));
+    writeBlock(inspectionVariables.liveConnectionWPB, "=", abcFormat.format(abc.y));
+    writeBlock(inspectionVariables.liveConnectionWPC, "=", abcFormat.format(abc.z));
+    forceSequenceNumbers(true);
+    writeBlock("IF [" + inspectionVariables.workplaneStartAddress, "NE -1] GOTO" + skipNLines(2));
+    writeBlock(inspectionVariables.workplaneStartAddress, "=", inspectionGetToolpathId(currentSection));
+    writeBlock(" ");
+    forceSequenceNumbers(false);
+  }
+
   defineLocalVariable(1, abcFormat.format(abc.x));
   defineLocalVariable(2, abcFormat.format(abc.y));
   defineLocalVariable(3, abcFormat.format(abc.z));
@@ -3369,8 +3441,8 @@ function inspectionWriteWorkplaneTransform() {
 }
 
 function writeProbingToolpathInformation(cycleDepth) {
-  defineLocalVariable(1, getParameter("autodeskcam:operation-id"));
-  writeln(formatLocalVariable("DPRNT[TOOLPATHID*", 1, "[54]]"));
+  defineLocalVariable(1, inspectionGetToolpathId(currentSection));
+  writeln(formatLocalVariable("DPRNT[TOOLPATHID*", 1, "[35]]"));
   if (isInspectionOperation()) {
     writeln("DPRNT[TOOLPATH*" + getParameter("operation-comment").toUpperCase().replace(/[()]/g, "") + "]");
   } else {
