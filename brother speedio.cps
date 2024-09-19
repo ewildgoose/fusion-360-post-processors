@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44136 958a4f328bdf1f58a6e166487214998e1f7fb2a3 $
-  $Date: 2024-07-29 13:11:00 $
+  $Revision: 44143 a6bed23af30910e818b47bd47a2a96f498fdb4f8 $
+  $Date: 2024-09-03 03:29:25 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -33,7 +33,7 @@ minimumCircularSweep = toRad(0.01);
 maximumCircularSweep = toRad(180);
 allowHelicalMoves = true;
 allowedCircularPlanes = undefined;
-highFeedrate = (unit == IN) ? 500 : 5000;
+highFeedrate = (unit == MM) ? 5000 : 200;
 probeMultipleFeatures = true;
 
 // user-defined properties
@@ -241,20 +241,21 @@ wcsDefinitions = {
   ]
 };
 
-var gFormat = createFormat({prefix:"G", width:2, zeropad:true, decimals:1});
-var mFormat = createFormat({prefix:"M", width:2, zeropad:true, decimals:1});
-var hFormat = createFormat({prefix:"H", width:2, zeropad:true, decimals:1});
-var diameterOffsetFormat = createFormat({prefix:"D", width:2, zeropad:true, decimals:1});
-var probeWCSFormat = createFormat({decimals:0, forceDecimal:true});
+var gFormat = createFormat({prefix:"G", minDigitsLeft:2, decimals:1});
+var mFormat = createFormat({prefix:"M", minDigitsLeft:2, decimals:1});
+var hFormat = createFormat({prefix:"H", minDigitsLeft:2, decimals:1});
+var diameterOffsetFormat = createFormat({prefix:"D", minDigitsLeft:2, decimals:1});
+var probeWCSFormat = createFormat({decimals:0, type:FORMAT_REAL});
 
 var xyzFormat = createFormat({decimals:(unit == MM ? 3 : 4), forceDecimal:false});
+var ijkFormat = createFormat({decimals:6, type:FORMAT_REAL}); // unitless
 var rFormat = xyzFormat; // radius
-var abcFormat = createFormat({decimals:3, forceDecimal:true, scale:DEG});
+var abcFormat = createFormat({decimals:3, type:FORMAT_REAL, scale:DEG});
 var feedFormat = createFormat({decimals:(unit == MM ? 0 : 1), forceDecimal:false});
-var inverseTimeFormat = createFormat({decimals:3, forceDecimal:true});
-var toolFormat = createFormat({width:2, zeropad:true, decimals:1});
+var inverseTimeFormat = createFormat({decimals:3, type:FORMAT_REAL});
+var toolFormat = createFormat({minDigitsLeft:2, decimals:1});
 var rpmFormat = createFormat({decimals:0});
-var secFormat = createFormat({decimals:3, forceDecimal:true}); // seconds - range 0.001-99999.999
+var secFormat = createFormat({decimals:3, type:FORMAT_REAL}); // seconds - range 0.001-99999.999
 var taperFormat = createFormat({decimals:1, scale:DEG});
 
 var xOutput = createOutputVariable({onchange:function() {state.retractedX = false;}, prefix:"X"}, xyzFormat);
@@ -281,7 +282,7 @@ var gUnitModal = createOutputVariable({}, gFormat); // modal group 6 // G20-21
 var gCycleModal = createOutputVariable({control:CONTROL_FORCE}, gFormat); // modal group 9 // G81, ...
 var gRetractModal = createOutputVariable({}, gFormat); // modal group 10 // G98-99
 var fourthAxisClamp = createOutputVariable({}, mFormat);
-var fithAxisClamp = createOutputVariable({}, mFormat);
+var fifthAxisClamp = createOutputVariable({}, mFormat);
 
 var settings = {
   coolant: {
@@ -466,6 +467,11 @@ function onOpen() {
     error(localize("Program name has not been specified."));
   }
   writeProgramHeader();
+
+  if (typeof inspectionWriteVariables == "function") {
+    inspectionWriteVariables();
+  }
+
   // absolute coordinates and feed per min
   writeBlock(gMotionModal.format(0), gAbsIncModal.format(90), gFormat.format(40), gFormat.format(80));
   writeBlock(gFeedModeModal.format(94), toolLengthCompOutput.format(49));
@@ -560,7 +566,10 @@ function onSection() {
     defineWorkPlane(currentSection, true);
     startSpindle(tool, insertToolCall);
   }
-
+  // write parametric feedrate table
+  if (typeof initializeParametricFeeds == "function") {
+    initializeParametricFeeds(insertToolCall);
+  }
   writeBlock(gPlaneModal.format(17), gAbsIncModal.format(90), gFeedModeModal.format(94));
 
   onCommand(COMMAND_START_CHIP_TRANSPORT);
@@ -600,17 +609,16 @@ function onSection() {
     }
   }
 
-  // write parametric feedrate table
-  if (typeof initializeParametricFeeds == "function") {
-    initializeParametricFeeds(insertToolCall);
-  }
   if (isProbeOperation()) {
     validate(probeVariables.probeAngleMethod != "G68", "You cannot probe while G68 Rotation is in effect.");
     validate(probeVariables.probeAngleMethod != "G54.4", "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
     if (getProperty("probingType") == "Renishaw") {
-      writeBlock(gFormat.format(65), "P" + 8832); // spin the probe on
+      writeBlock(settings.probing.macroCall, "P" + 8832); // spin the probe on
       inspectionCreateResultsFileHeader();
     }
+  }
+  if (typeof inspectionProcessSectionStart == "function") {
+    inspectionProcessSectionStart();
   }
 }
 
@@ -1612,7 +1620,7 @@ function onCommand(command) {
     if (machineConfiguration.isMultiAxisConfiguration()) {
       // writeBlock(fourthAxisClamp.format(25)); // lock 4th axis
       if (machineConfiguration.getNumberOfAxes() > 4) {
-        // writeBlock(fithAxisClamp.format(35)); // lock 5th axis
+        // writeBlock(fifthAxisClamp.format(35)); // lock 5th axis
       }
     }
     return;
@@ -1620,7 +1628,7 @@ function onCommand(command) {
     if (machineConfiguration.isMultiAxisConfiguration()) {
       // writeBlock(fourthAxisClamp.format(26)); // unlock 4th axis
       if (machineConfiguration.getNumberOfAxes() > 4) {
-        // writeBlock(fithAxisClamp.format(36)); // unlock 5th axis
+        // writeBlock(fifthAxisClamp.format(36)); // unlock 5th axis
       }
     }
     return;
@@ -1631,6 +1639,10 @@ function onCommand(command) {
   case COMMAND_BREAK_CONTROL:
     return;
   case COMMAND_TOOL_MEASURE:
+    return;
+  case COMMAND_PROBE_ON:
+    return;
+  case COMMAND_PROBE_OFF:
     return;
   }
 
@@ -1647,27 +1659,33 @@ function onSectionEnd() {
   if (currentSection.isMultiAxis()) {
     writeBlock(gFeedModeModal.format(94)); // inverse time feed off
   }
-  writeBlock(gPlaneModal.format(17));
-
-  if (((getCurrentSectionId() + 1) >= getNumberOfSections()) ||
-      (tool.number != getNextSection().getTool().number)) {
-    onCommand(COMMAND_BREAK_CONTROL);
+  if (isInspectionOperation() && !isLastSection()) {
+    writeBlock(getProperty("commissioningMode") ? onCommand(COMMAND_STOP) : "");
   }
+  writeBlock(gPlaneModal.format(17));
 
   if (tool.type != TOOL_PROBE && getProperty("washdownCoolant") == "operationEnd") {
     writeBlock(mFormat.format(washdownCoolant.on));
     writeBlock(mFormat.format(washdownCoolant.off));
   }
-  if (!isLastSection() && (getNextSection().getTool().coolant != tool.coolant)) {
-    setCoolant(COOLANT_OFF);
+  if (!isLastSection()) {
+    if (getNextSection().getTool().coolant != tool.coolant) {
+      setCoolant(COOLANT_OFF);
+    }
+    if (tool.breakControl && isToolChangeNeeded(getNextSection(), getProperty("toolAsName") ? "description" : "number")) {
+      onCommand(COMMAND_BREAK_CONTROL);
+    }
   }
   if (isProbeOperation()) {
     if (getProperty("probingType") == "Renishaw") {
-      writeBlock(gFormat.format(65), "P" + 8833); // spin the probe off
+      writeBlock(settings.probing.macroCall, "P" + 8833); // spin the probe off
       if (probeVariables.probeAngleMethod != "G68") {
         setProbeAngle(); // output probe angle rotations if required
       }
     }
+  }
+  if (typeof inspectionProcessSectionEnd == "function") {
+    inspectionProcessSectionEnd();
   }
   forceAny();
 }
@@ -1678,9 +1696,6 @@ function onClose() {
     writeln("DPRNT[END]");
     writeBlock("PCLOS");
     isDPRNTopen = false;
-    if (typeof inspectionProcessSectionEnd == "function") {
-      inspectionProcessSectionEnd();
-    }
   }
   writeRetract(Z);
   disableLengthCompensation(true);
@@ -1706,6 +1721,9 @@ function onClose() {
   }
   setSmoothing(false);
   setWorkPlane(new Vector(0, 0, 0)); // reset working plane
+  if (typeof inspectionProcessSectionEnd == "function") {
+    inspectionProcessSectionEnd();
+  }
   writeBlock(mFormat.format(30)); // stop program, spindle stop, coolant off
 }
 
@@ -1831,7 +1849,9 @@ function validateCommonParameters() {
   for (var i = 0; i < getNumberOfSections(); ++i) {
     var section = getSection(i);
     if (getSection(0).workOffset == 0 && section.workOffset > 0) {
-      error(localize("Using multiple work offsets is not possible if the initial work offset is 0."));
+      if (!(typeof wcsDefinitions != "undefined" && wcsDefinitions.useZeroOffset)) {
+        error(localize("Using multiple work offsets is not possible if the initial work offset is 0."));
+      }
     }
     if (section.isMultiAxis()) {
       if (!section.isOptimizedForMachine() &&
