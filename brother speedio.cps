@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44131 932990debebb6682fc2eeec860c18e6e6417efcb $
-  $Date: 2024-06-14 09:23:24 $
+  $Revision: 44135 ca4aa7556550b65227255ce1ffa286b951775c8a $
+  $Date: 2024-07-19 12:09:48 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -592,7 +592,12 @@ function onSection() {
   var initialPosition = getFramePosition(currentSection.getInitialPosition());
   if (!insertToolCall) { // G100 tool call macro does handle initial positioning
     var isRequired = state.retractedZ || !state.lengthCompensationActive  || (!isFirstSection() && getPreviousSection().isMultiAxis());
-    writeInitialPositioning(initialPosition, isRequired);
+    if (currentSection.isMultiAxis()) {
+      onCommand(COMMAND_LOAD_TOOL);
+      forceAny();
+    } else {
+      writeInitialPositioning(initialPosition, isRequired);
+    }
   }
 
   // write parametric feedrate table
