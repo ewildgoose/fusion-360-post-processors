@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44143 a6bed23af30910e818b47bd47a2a96f498fdb4f8 $
-  $Date: 2024-09-03 03:29:25 $
+  $Revision: 44145 4f7aaa6c97df2d49db23603652fb3cf23f709aa1 $
+  $Date: 2024-09-19 10:09:13 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -1531,8 +1531,9 @@ function onRotateAxes(_x, _y, _z, _a, _b, _c) {
   xOutput.disable();
   yOutput.disable();
   zOutput.disable();
-  invokeOnRapid5D(_x, _y, _z, _a, _b, _c);
+  onRapid5D(_x, _y, _z, _a, _b, _c);
   setCurrentABC(new Vector(_a, _b, _c));
+  machineSimulation({a:_a, b:_b, c:_c, coordinates:MACHINE});
   xOutput.enable();
   yOutput.enable();
   zOutput.enable();
@@ -1550,8 +1551,12 @@ function onReturnFromSafeRetractPosition(_x, _y, _z) {
   xOutput.reset();
   yOutput.reset();
   zOutput.disable();
-  invokeOnRapid(_x, _y, _z);
-
+  if (highFeedMapping != HIGH_FEED_NO_MAPPING) {
+    onLinear(_x, _y, _z, highFeedrate);
+  } else {
+    onRapid(_x, _y, _z);
+  }
+  machineSimulation({x:_x, y:_y});
   // position in Z
   zOutput.enable();
   invokeOnRapid(_x, _y, _z);
@@ -1608,13 +1613,26 @@ function onCommand(command) {
       conditional(tool.type != TOOL_PROBE, sOutput.format(spindleSpeed)),
       conditional(tool.type != TOOL_PROBE, mFormat.format(tool.clockwise ? 3 : 4))
     );
+    writeComment(tool.comment);
     currentWorkPlaneABC = abc ? abc : currentWorkPlaneABC; // workplane is set with the G100 command
+    forceSpindleSpeed = false;
+
+    // for machine simulation, with TCP enabled G100 acts like prepositionWithTWP
     if (abc != undefined) {
       setCurrentABC(abc); // required for machine simulation
+      machineSimulation({a:getCurrentABC().x, b:getCurrentABC().y, c:getCurrentABC().z, coordinates:MACHINE, mode:TCPOFF});
     }
-    writeComment(tool.comment);
-
-    forceSpindleSpeed = false;
+    var W = currentSection.workPlane;
+    var prePosition = start;
+    if (tcp.isSupportedByOperation) {
+      W = machineConfiguration.isMultiAxisConfiguration() ? machineConfiguration.getOrientation(getCurrentABC()) :
+        Matrix.getOrientationFromDirection(getCurrentABC());
+      prePosition = W.getTransposed().multiply(start);
+      var angles = W.getEuler2(settings.workPlaneMethod.eulerConvention);
+      machineSimulation({mode:TWPON, coordinates:MACHINE, eulerAngles:angles});
+    }
+    machineSimulation({x:prePosition.x, y:prePosition.y, mode:tcp.isSupportedByOperation ? TWPON : undefined});
+    machineSimulation(tcp.isSupportedByOperation ? {x:start.x, y:start.y, z:start.z} : {z:start.z});
     return;
   case COMMAND_LOCK_MULTI_AXIS:
     if (machineConfiguration.isMultiAxisConfiguration()) {
@@ -2061,6 +2079,7 @@ function writeToolBlock() {
   setProperty("showSequenceNumbers", (show == "true" || show == "toolChange") ? "true" : "false");
   writeBlock(arguments);
   setProperty("showSequenceNumbers", show);
+  machineSimulation({/*x:toPreciseUnit(200, MM), y:toPreciseUnit(200, MM), coordinates:MACHINE,*/ mode:TOOLCHANGE}); // move machineSimulation to a tool change position
 }
 
 var skipBlocks = false;
@@ -2234,12 +2253,142 @@ function getRetractParameters() {
       return undefined;
     }
   }
-  return {method:method, retractAxes:retractAxes, words:words, singleLine:singleLine};
+  return {
+    method     : method,
+    retractAxes: retractAxes,
+    words      : words,
+    positions  : {
+      x: retractAxes[0] ? _xHome : undefined,
+      y: retractAxes[1] ? _yHome : undefined,
+      z: retractAxes[2] ? _zHome : undefined},
+    singleLine: singleLine};
 }
 
 /** Returns true when subprogram logic does exist into the post. */
 function subprogramsAreSupported() {
   return typeof subprogramState != "undefined";
+}
+
+// Start of machine simulation connection move support
+var TCPON = "TCP ON";
+var TCPOFF = "TCP OFF";
+var TWPON = "TWP ON";
+var TWPOFF = "TWP OFF";
+var TOOLCHANGE = "TOOL CHANGE";
+var WORK = "WORK CS";
+var MACHINE = "MACHINE CS";
+var isTwpOn; // only used for debugging
+var isTcpOn; // only used for debugging
+if (typeof groupDefinitions != "object") {
+  groupDefinitions = {};
+}
+groupDefinitions.machineSimulation = {title:"Machine Simulation", collapsed:true, order:99};
+properties.simulateConnectionMoves = {
+  title      : "Simulate Connection Moves (Preview feature)",
+  description: "Specifies that connection moves like prepositioning, tool changes, retracts and other non-cutting moves should be shown in the machine simulation." + EOL +
+    "Note, this property does not affect the NC output, it only affects the machine simulation.",
+  group: "machineSimulation",
+  type : "boolean",
+  value: false,
+  scope: "machine"
+};
+/**
+ * Helper function for connection moves in machine simulation.
+ * @param {Object} parameters An object containing the desired options for machine simulation.
+ * @note Available properties are:
+ * @param {Number} x X axis position
+ * @param {Number} y Y axis position
+ * @param {Number} z Z axis position
+ * @param {Number} a A axis position (in radians)
+ * @param {Number} b B axis position (in radians)
+ * @param {Number} c C axis position (in radians)
+ * @param {Number} feed desired feedrate, automatically set to high/current feedrate if not specified
+ * @param {String} mode mode TCPON | TCPOFF | TWPON | TWPOFF | TOOLCHANGE
+ * @param {String} coordinates WORK | MACHINE - if undefined, work coordinates will be used by default
+ * @param {Number} eulerAngles the calculated Euler angles for the workplane
+ * @example
+  machineSimulation({a:abc.x, b:abc.y, c:abc.z, coordinates:MACHINE});
+  machineSimulation({x:toPreciseUnit(200, MM), y:toPreciseUnit(200, MM), coordinates:MACHINE, toolChange:true});
+*/
+var debugSimulation = false; // enable to output debug information for connection move support in the NC program
+
+function machineSimulation(parameters) {
+  if (revision < 50075 || skipBlocks || !getProperty("simulateConnectionMoves")) {
+    return; // return when post kernel revision is lower than 50075 or when skipBlocks is enabled
+  }
+  var x = parameters.x;
+  var y = parameters.y;
+  var z = parameters.z;
+  var a = parameters.a;
+  var b = parameters.b;
+  var c = parameters.c;
+  var coordinates = parameters.coordinates;
+  var eulerAngles = parameters.eulerAngles;
+  var feed = parameters.feed;
+  if (feed === undefined && typeof gMotionModal !== "undefined") {
+    feed = gMotionModal.getCurrent() !== 0;
+  }
+  var mode  = parameters.mode;
+  var performToolChange = mode == TOOLCHANGE;
+  if (mode !== undefined && ![TCPON, TCPOFF, TWPON, TWPOFF, TOOLCHANGE].includes(mode)) {
+    error(subst("Mode '%1' is not supported.", mode));
+  }
+
+  // mode takes precedence over active state
+  var enableTCP = mode != undefined ? mode == TCPON : typeof state !== "undefined" && state.tcpIsActive;
+  var enableTWP = mode != undefined ? mode == TWPON : typeof state !== "undefined" && state.twpIsActive;
+  var disableTCP = mode != undefined ? mode == TCPOFF : typeof state !== "undefined" && !state.tcpIsActive;
+  var disableTWP = mode != undefined ? mode == TWPOFF : typeof state !== "undefined" && !state.twpIsActive;
+  if (enableTCP) { // update TCP mode
+    simulation.setTWPModeOff();
+    simulation.setTCPModeOn();
+    isTcpOn = true;
+  } else if (disableTCP) {
+    simulation.setTCPModeOff();
+    isTcpOn = false;
+  }
+
+  if (enableTWP) { // update TWP mode
+    simulation.setTCPModeOff();
+    if (settings.workPlaneMethod.eulerConvention == undefined) {
+      simulation.setTWPModeAlignToCurrentPose();
+    } else if (eulerAngles) {
+      simulation.setTWPModeByEulerAngles(settings.workPlaneMethod.eulerConvention, eulerAngles.x, eulerAngles.y, eulerAngles.z);
+    }
+    isTwpOn = true;
+  } else if (disableTWP) {
+    simulation.setTWPModeOff();
+    isTwpOn = false;
+  }
+  if (debugSimulation) {
+    writeln("  DEBUG" + JSON.stringify(parameters));
+    writeln("  DEBUG" + JSON.stringify({isTwpOn:isTwpOn, isTcpOn:isTcpOn, feed:feed}));
+  }
+
+  if (x !== undefined || y !== undefined || z !== undefined || a !== undefined || b !== undefined || c !== undefined) {
+    if (x !== undefined) {simulation.setTargetX(x);}
+    if (y !== undefined) {simulation.setTargetY(y);}
+    if (z !== undefined) {simulation.setTargetZ(z);}
+    if (a !== undefined) {simulation.setTargetA(a);}
+    if (b !== undefined) {simulation.setTargetB(b);}
+    if (c !== undefined) {simulation.setTargetC(c);}
+
+    if (feed != undefined && feed) {
+      simulation.setMotionToLinear();
+      simulation.setFeedrate(typeof feed == "number" ? feed : feedOutput.getCurrent() == 0 ? highFeedrate : feedOutput.getCurrent());
+    } else {
+      simulation.setMotionToRapid();
+    }
+
+    if (coordinates != undefined && coordinates == MACHINE) {
+      simulation.moveToTargetInMachineCoords();
+    } else {
+      simulation.moveToTargetInWorkCoords();
+    }
+  }
+  if (performToolChange) {
+    simulation.performToolChangeCycle();
+  }
 }
 // <<<<< INCLUDED FROM include_files/commonFunctions.cpi
 // >>>>> INCLUDED FROM include_files/defineWorkPlane.cpi
@@ -2348,6 +2497,7 @@ function positionABC(abc, force) {
     if (getCurrentSectionId() != -1) {
       setCurrentABC(abc); // required for machine simulation
     }
+    machineSimulation({a:abc.x, b:abc.y, c:abc.z, coordinates:MACHINE});
   }
 }
 // <<<<< INCLUDED FROM include_files/positionABC.cpi
@@ -3106,6 +3256,7 @@ function setWorkPlane(abc) {
           "I" + abcFormat.format(abc.x), "J" + abcFormat.format(abc.y), "K" + abcFormat.format(abc.z)
         ); // set frame
         writeBlock(gFormat.format(53.1)); // turn machine
+        machineSimulation({a:getCurrentABC().x, b:getCurrentABC().y, c:getCurrentABC().z, coordinates:MACHINE, eulerAngles:abc});
       }
     } else {
       positionABC(abc, true);
@@ -3152,6 +3303,12 @@ function writeRetract() {
           return;
         }
       }
+      machineSimulation({
+        x          : retract.singleLine || words.indexOf("X") != -1 ? retract.positions.x : undefined,
+        y          : retract.singleLine || words.indexOf("Y") != -1 ? retract.positions.y : undefined,
+        z          : retract.singleLine || words.indexOf("Z") != -1 ? retract.positions.z : undefined,
+        coordinates: MACHINE
+      });
       if (retract.singleLine) {
         break;
       }
@@ -3201,6 +3358,7 @@ function writeInitialPositioning(position, isRequired, codes1, codes2) {
       var angles = W.getEuler2(settings.workPlaneMethod.eulerConvention);
       setWorkPlane(angles);
       writeBlock(modalCodes, gMotionModal.format(motionCode.multi), xOutput.format(prePosition.x), yOutput.format(prePosition.y), feed, additionalCodes[0]);
+      machineSimulation({x:prePosition.x, y:prePosition.y});
       cancelWorkPlane();
       writeBlock(getOffsetCode(), hOffset, additionalCodes[1]); // omit Z-axis output is desired
       forceAny(); // required to output XYZ coordinates in the following line
@@ -3210,9 +3368,12 @@ function writeInitialPositioning(position, isRequired, codes1, codes2) {
           xOutput.format(position.x), yOutput.format(position.y), zOutput.format(position.z),
           hOffset, feed, additionalCodes
         );
+        machineSimulation({x:position.x, y:position.y, z:position.z});
       } else {
         writeBlock(modalCodes, gMotionModal.format(motionCode.multi), xOutput.format(position.x), yOutput.format(position.y), feed, additionalCodes[0]);
+        machineSimulation({x:position.x, y:position.y});
         writeBlock(gMotionModal.format(motionCode.single), getOffsetCode(), zOutput.format(position.z), hOffset, additionalCodes[1]);
+        machineSimulation(tcp.isSupportedByOperation ? {x:position.x, y:position.y, z:position.z} : {z:position.z});
       }
     }
     forceModals(gMotionModal);
@@ -3226,9 +3387,11 @@ function writeInitialPositioning(position, isRequired, codes1, codes2) {
     var modalCodes = formatWords(gAbsIncModal.format(90), gPlaneModal.format(17));
     if (!state.retractedZ && xyzFormat.getResultingValue(getCurrentPosition().z) < xyzFormat.getResultingValue(position.z)) {
       writeBlock(modalCodes, gMotionModal.format(motionCode.single), zOutput.format(position.z), feed);
+      machineSimulation({z:position.z});
     }
     forceXYZ();
     writeBlock(modalCodes, gMotionModal.format(motionCode.multi), xOutput.format(position.x), yOutput.format(position.y), feed, additionalCodes);
+    machineSimulation({x:position.x, y:position.y});
   }
 }
 
