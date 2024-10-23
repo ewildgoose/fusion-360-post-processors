@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44145 4f7aaa6c97df2d49db23603652fb3cf23f709aa1 $
-  $Date: 2024-09-19 10:09:13 $
+  $Revision: 44147 677745ced85b652992ed7b147af5fc52bc11236c $
+  $Date: 2024-10-14 08:11:54 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -282,7 +282,8 @@ var gUnitModal = createOutputVariable({}, gFormat); // modal group 6 // G20-21
 var gCycleModal = createOutputVariable({control:CONTROL_FORCE}, gFormat); // modal group 9 // G81, ...
 var gRetractModal = createOutputVariable({}, gFormat); // modal group 10 // G98-99
 var fourthAxisClamp = createOutputVariable({}, mFormat);
-var fifthAxisClamp = createOutputVariable({}, mFormat);
+var fithAxisClamp = createOutputVariable({}, mFormat);
+var washdownModal = createOutputVariable({}, mFormat);
 
 var settings = {
   coolant: {
@@ -449,6 +450,7 @@ function onOpen() {
     maximumCircularSweep = toRad(90); // avoid potential center calculation errors for CNC
   }
   gRotationModal.format(69); // Default to G69 Rotation Off
+  washdownModal.format(washdownCoolant.off);
 
   // setup for proper smoothing mode
   switch (getProperty("smoothingMode")) {
@@ -593,8 +595,8 @@ function onSection() {
 
   setSmoothing(smoothing.isAllowed);
 
-  if (tool.type != TOOL_PROBE && isFirstSection() && (getProperty("washdownCoolant") == "always")) {
-    writeBlock(mFormat.format(washdownCoolant.on));
+  if (getProperty("washdownCoolant") == "always") {
+    writeBlock(washdownModal.format(tool.type == TOOL_PROBE ? washdownCoolant.off : washdownCoolant.on));
   }
 
   // prepositioning
@@ -1683,8 +1685,8 @@ function onSectionEnd() {
   writeBlock(gPlaneModal.format(17));
 
   if (tool.type != TOOL_PROBE && getProperty("washdownCoolant") == "operationEnd") {
-    writeBlock(mFormat.format(washdownCoolant.on));
-    writeBlock(mFormat.format(washdownCoolant.off));
+    writeBlock(washdownModal.format(washdownCoolant.on));
+    writeBlock(washdownModal.format(washdownCoolant.off));
   }
   if (!isLastSection()) {
     if (getNextSection().getTool().coolant != tool.coolant) {
@@ -1724,13 +1726,13 @@ function onClose() {
   writeln("");
 
   setCoolant(COOLANT_OFF);
-  if (tool.type != TOOL_PROBE && (getProperty("washdownCoolant") == "always" || getProperty("washdownCoolant") == "programEnd")) {
+  if (tool.type != TOOL_PROBE) {
     if (getProperty("washdownCoolant") == "programEnd") {
-      writeBlock(mFormat.format(washdownCoolant.on));
+      writeBlock(washdownModal.format(washdownCoolant.on));
     }
-    writeBlock(mFormat.format(washdownCoolant.off));
+    writeBlock(washdownModal.format(washdownCoolant.off));
   }
-  setCoolant(COOLANT_OFF);
+
   var firstToolNumber = getSection(0).getTool().number;
   writeBlock(gFormat.format(100), "T" + toolFormat.format(firstToolNumber));
   state.retractedZ = true; // tool call does a full retract along the z-axis
