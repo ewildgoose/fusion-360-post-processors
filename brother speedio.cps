@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44147 677745ced85b652992ed7b147af5fc52bc11236c $
-  $Date: 2024-10-14 08:11:54 $
+  $Revision: 44155 c7484e5d16072dec47fddad89ef85ab59f07423c $
+  $Date: 2024-12-13 16:41:18 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -2272,6 +2272,7 @@ function subprogramsAreSupported() {
 }
 
 // Start of machine simulation connection move support
+var debugSimulation = false; // enable to output debug information for connection move support in the NC program
 var TCPON = "TCP ON";
 var TCPOFF = "TCP OFF";
 var TWPON = "TWP ON";
@@ -2279,28 +2280,31 @@ var TWPOFF = "TWP OFF";
 var TOOLCHANGE = "TOOL CHANGE";
 var WORK = "WORK CS";
 var MACHINE = "MACHINE CS";
+var MIN = "MIN";
+var MAX = "MAX";
+var WARNING_NON_RANGE = [0, 1, 2];
 var isTwpOn; // only used for debugging
 var isTcpOn; // only used for debugging
 if (typeof groupDefinitions != "object") {
   groupDefinitions = {};
 }
 groupDefinitions.machineSimulation = {title:"Machine Simulation", collapsed:true, order:99};
-properties.simulateConnectionMoves = {
+properties.simulateConnectionMovesEnabled = {
   title      : "Simulate Connection Moves (Preview feature)",
   description: "Specifies that connection moves like prepositioning, tool changes, retracts and other non-cutting moves should be shown in the machine simulation." + EOL +
     "Note, this property does not affect the NC output, it only affects the machine simulation.",
   group: "machineSimulation",
   type : "boolean",
-  value: false,
+  value: true,
   scope: "machine"
 };
 /**
  * Helper function for connection moves in machine simulation.
  * @param {Object} parameters An object containing the desired options for machine simulation.
  * @note Available properties are:
- * @param {Number} x X axis position
- * @param {Number} y Y axis position
- * @param {Number} z Z axis position
+ * @param {Number} x X axis position, alternatively use MIN or MAX to move to the axis limit
+ * @param {Number} y Y axis position, alternatively use MIN or MAX to move to the axis limit
+ * @param {Number} z Z axis position, alternatively use MIN or MAX to move to the axis limit
  * @param {Number} a A axis position (in radians)
  * @param {Number} b B axis position (in radians)
  * @param {Number} c C axis position (in radians)
@@ -2310,20 +2314,31 @@ properties.simulateConnectionMoves = {
  * @param {Number} eulerAngles the calculated Euler angles for the workplane
  * @example
   machineSimulation({a:abc.x, b:abc.y, c:abc.z, coordinates:MACHINE});
-  machineSimulation({x:toPreciseUnit(200, MM), y:toPreciseUnit(200, MM), coordinates:MACHINE, toolChange:true});
+  machineSimulation({x:toPreciseUnit(200, MM), y:toPreciseUnit(200, MM), coordinates:MACHINE, mode:TOOLCHANGE});
 */
-var debugSimulation = false; // enable to output debug information for connection move support in the NC program
-
 function machineSimulation(parameters) {
-  if (revision < 50075 || skipBlocks || !getProperty("simulateConnectionMoves")) {
+  if (revision < 50075 || skipBlocks || !getProperty("simulateConnectionMovesEnabled")) {
     return; // return when post kernel revision is lower than 50075 or when skipBlocks is enabled
   }
-  var x = parameters.x;
-  var y = parameters.y;
-  var z = parameters.z;
-  var a = parameters.a;
-  var b = parameters.b;
-  var c = parameters.c;
+  getAxisLimit = function(axis, limit) {
+    validate(limit == MIN || limit == MAX, subst(localize("Invalid argument \"%1\" passed to the machineSimulation function."), limit));
+    var range = axis.getRange();
+    if (range.isNonRange()) {
+      var axisLetters = ["X", "Y", "Z"];
+      var warningMessage = subst(localize("An attempt was made to move the \"%1\" axis to its MIN/MAX limits during machine simulation, but its range is set to \"unlimited\"." + EOL +
+        "A limited range must be set for the \"%1\" axis in the machine definition, or these motions will not be shown in machine simulation."), axisLetters[axis.getCoordinate()]);
+      warningOnce(warningMessage, WARNING_NON_RANGE[axis.getCoordinate()]);
+      return undefined;
+    }
+    return limit == MIN ? range.minimum : range.maximum;
+  };
+  var x = (isNaN(parameters.x) && parameters.x) ? getAxisLimit(machineConfiguration.getAxisX(), parameters.x) : parameters.x;
+  var y = (isNaN(parameters.y) && parameters.y) ? getAxisLimit(machineConfiguration.getAxisY(), parameters.y) : parameters.y;
+  var z = (isNaN(parameters.z) && parameters.z) ? getAxisLimit(machineConfiguration.getAxisZ(), parameters.z) : parameters.z;
+  var rotaryAxesErrorMessage = localize("Invalid argument for rotary axes passed to the machineSimulation function. Only numerical values are supported.");
+  var a = (isNaN(parameters.a) && parameters.a) ? error(rotaryAxesErrorMessage) : parameters.a;
+  var b = (isNaN(parameters.b) && parameters.b) ? error(rotaryAxesErrorMessage) : parameters.b;
+  var c = (isNaN(parameters.c) && parameters.c) ? error(rotaryAxesErrorMessage) : parameters.c;
   var coordinates = parameters.coordinates;
   var eulerAngles = parameters.eulerAngles;
   var feed = parameters.feed;
@@ -2390,6 +2405,7 @@ function machineSimulation(parameters) {
   }
   if (performToolChange) {
     simulation.performToolChangeCycle();
+    simulation.moveToTargetInMachineCoords();
   }
 }
 // <<<<< INCLUDED FROM include_files/commonFunctions.cpi
@@ -2495,10 +2511,7 @@ function positionABC(abc, force) {
     onCommand(COMMAND_UNLOCK_MULTI_AXIS);
     gMotionModal.reset();
     writeBlock(gMotionModal.format(0), a, b, c);
-
-    if (getCurrentSectionId() != -1) {
-      setCurrentABC(abc); // required for machine simulation
-    }
+    setCurrentABC(abc); // required for machine simulation
     machineSimulation({a:abc.x, b:abc.y, c:abc.z, coordinates:MACHINE});
   }
 }
@@ -3300,9 +3313,9 @@ function writeRetract() {
       default:
         if (typeof writeRetractCustom == "function") {
           writeRetractCustom(retract);
+          return;
         } else {
           error(subst(localize("Unsupported safe position method '%1'"), retract.method));
-          return;
         }
       }
       machineSimulation({
