@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44161 57e1a9f900ef4ff56310f49716bac637f473fc94 $
-  $Date: 2025-01-22 17:49:05 $
+  $Revision: 44166 e813d608ccd22fb0949f73fcdb773b434407b131 $
+  $Date: 2025-02-19 11:52:14 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -1624,14 +1624,14 @@ function onCommand(command) {
     }
     var W = currentSection.workPlane;
     var prePosition = start;
+    var angles = undefined;
     if (tcp.isSupportedByOperation) {
       W = machineConfiguration.isMultiAxisConfiguration() ? machineConfiguration.getOrientation(getCurrentABC()) :
         Matrix.getOrientationFromDirection(getCurrentABC());
       prePosition = W.getTransposed().multiply(start);
-      var angles = W.getEuler2(settings.workPlaneMethod.eulerConvention);
-      machineSimulation({mode:TWPON, coordinates:MACHINE, eulerAngles:angles});
+      angles = W.getEuler2(settings.workPlaneMethod.eulerConvention);
     }
-    machineSimulation({x:prePosition.x, y:prePosition.y, mode:tcp.isSupportedByOperation ? TWPON : undefined});
+    machineSimulation({x:prePosition.x, y:prePosition.y, mode:tcp.isSupportedByOperation ? TWPON : undefined, eulerAngles:angles});
     machineSimulation(tcp.isSupportedByOperation ? {x:start.x, y:start.y, z:start.z} : {z:start.z});
     return;
   case COMMAND_LOCK_MULTI_AXIS:
@@ -2275,6 +2275,7 @@ var TCPOFF = "TCP OFF";
 var TWPON = "TWP ON";
 var TWPOFF = "TWP OFF";
 var TOOLCHANGE = "TOOL CHANGE";
+var RETRACTTOOLAXIS = "RETRACT TOOLAXIS";
 var WORK = "WORK CS";
 var MACHINE = "MACHINE CS";
 var MIN = "MIN";
@@ -2282,19 +2283,6 @@ var MAX = "MAX";
 var WARNING_NON_RANGE = [0, 1, 2];
 var isTwpOn; // only used for debugging
 var isTcpOn; // only used for debugging
-if (typeof groupDefinitions != "object") {
-  groupDefinitions = {};
-}
-groupDefinitions.machineSimulation = {title:"Machine Simulation", collapsed:true, order:99};
-properties.simulateConnectionMovesEnabled = {
-  title      : "Simulate Connection Moves (Preview feature)",
-  description: "Specifies that connection moves like prepositioning, tool changes, retracts and other non-cutting moves should be shown in the machine simulation." + EOL +
-    "Note, this property does not affect the NC output, it only affects the machine simulation.",
-  group: "machineSimulation",
-  type : "boolean",
-  value: true,
-  scope: "machine"
-};
 /**
  * Helper function for connection moves in machine simulation.
  * @param {Object} parameters An object containing the desired options for machine simulation.
@@ -2306,7 +2294,7 @@ properties.simulateConnectionMovesEnabled = {
  * @param {Number} b B axis position (in radians)
  * @param {Number} c C axis position (in radians)
  * @param {Number} feed desired feedrate, automatically set to high/current feedrate if not specified
- * @param {String} mode mode TCPON | TCPOFF | TWPON | TWPOFF | TOOLCHANGE
+ * @param {String} mode mode TCPON | TCPOFF | TWPON | TWPOFF | TOOLCHANGE | RETRACTTOOLAXIS
  * @param {String} coordinates WORK | MACHINE - if undefined, work coordinates will be used by default
  * @param {Number} eulerAngles the calculated Euler angles for the workplane
  * @example
@@ -2314,7 +2302,7 @@ properties.simulateConnectionMovesEnabled = {
   machineSimulation({x:toPreciseUnit(200, MM), y:toPreciseUnit(200, MM), coordinates:MACHINE, mode:TOOLCHANGE});
 */
 function machineSimulation(parameters) {
-  if (revision < 50075 || skipBlocks || !getProperty("simulateConnectionMovesEnabled")) {
+  if (revision < 50075 || skipBlocks) {
     return; // return when post kernel revision is lower than 50075 or when skipBlocks is enabled
   }
   getAxisLimit = function(axis, limit) {
@@ -2344,25 +2332,40 @@ function machineSimulation(parameters) {
   }
   var mode  = parameters.mode;
   var performToolChange = mode == TOOLCHANGE;
-  if (mode !== undefined && ![TCPON, TCPOFF, TWPON, TWPOFF, TOOLCHANGE].includes(mode)) {
+  if (mode !== undefined && ![TCPON, TCPOFF, TWPON, TWPOFF, TOOLCHANGE, RETRACTTOOLAXIS].includes(mode)) {
     error(subst("Mode '%1' is not supported.", mode));
   }
 
-  // mode takes precedence over active state
-  var enableTCP = mode != undefined ? mode == TCPON : typeof state !== "undefined" && state.tcpIsActive;
-  var enableTWP = mode != undefined ? mode == TWPON : typeof state !== "undefined" && state.twpIsActive;
-  var disableTCP = mode != undefined ? mode == TCPOFF : typeof state !== "undefined" && !state.tcpIsActive;
-  var disableTWP = mode != undefined ? mode == TWPOFF : typeof state !== "undefined" && !state.twpIsActive;
-  if (enableTCP) { // update TCP mode
+  // mode takes precedence over TCP/TWP states
+  var enableTCP = false;
+  var enableTWP = false;
+  if (mode === TCPON) {
+    enableTCP = true;
+  } else if (mode === TCPOFF) {
+    enableTWP = typeof state !== "undefined" && state.twpIsActive;
+  } else if (mode === TWPON) {
+    enableTWP = true;
+  } else if (mode === TWPOFF) {
+    enableTCP = typeof state !== "undefined" && state.tcpIsActive;
+  } else {
+    enableTCP = typeof state !== "undefined" && state.tcpIsActive;
+    enableTWP = typeof state !== "undefined" && state.twpIsActive;
+  }
+  var disableTCP = !enableTCP;
+  var disableTWP = !enableTWP;
+  // update TCP mode
+  if (enableTCP) {
     simulation.setTWPModeOff();
     simulation.setTCPModeOn();
+    isTwpOn = false;
     isTcpOn = true;
-  } else if (disableTCP) {
+  }
+  if (disableTCP) {
     simulation.setTCPModeOff();
     isTcpOn = false;
   }
-
-  if (enableTWP) { // update TWP mode
+  // update TWP mode
+  if (enableTWP) {
     simulation.setTCPModeOff();
     if (settings.workPlaneMethod.eulerConvention == undefined) {
       simulation.setTWPModeAlignToCurrentPose();
@@ -2370,10 +2373,16 @@ function machineSimulation(parameters) {
       simulation.setTWPModeByEulerAngles(settings.workPlaneMethod.eulerConvention, eulerAngles.x, eulerAngles.y, eulerAngles.z);
     }
     isTwpOn = true;
-  } else if (disableTWP) {
+    isTcpOn = false;
+  }
+  if (disableTWP) {
     simulation.setTWPModeOff();
     isTwpOn = false;
   }
+  if (mode == RETRACTTOOLAXIS) {
+    simulation.retractAlongToolAxisToLimit();
+  }
+
   if (debugSimulation) {
     writeln("  DEBUG" + JSON.stringify(parameters));
     writeln("  DEBUG" + JSON.stringify({isTwpOn:isTwpOn, isTcpOn:isTcpOn, feed:feed}));
