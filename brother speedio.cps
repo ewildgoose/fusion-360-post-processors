@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44186 23bde517b464fd826f24aaa369bf2672c04a67ff $
-  $Date: 2025-07-07 15:28:08 $
+  $Revision: 44187 e5b7101e3e3d4be720eb5f7ef1215fd6bea618b9 $
+  $Date: 2025-07-17 05:22:31 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -340,7 +340,7 @@ var settings = {
     eulerCalculationMethod: "standard", // ('standard' / 'machine') 'machine' adjusts euler angles to match the machines ABC orientation, machine configuration required
     cancelTiltFirst       : true, // cancel tilted workplane prior to WCS (G54-G59) blocks
     forceMultiAxisIndexing: false, // force multi-axis indexing for 3D programs
-    optimizeType          : undefined // can be set to OPTIMIZE_NONE, OPTIMIZE_BOTH, OPTIMIZE_TABLES, OPTIMIZE_HEADS, OPTIMIZE_AXIS. 'undefined' uses legacy rotations
+    optimizeType          : OPTIMIZE_AXIS // can be set to OPTIMIZE_NONE, OPTIMIZE_BOTH, OPTIMIZE_TABLES, OPTIMIZE_HEADS, OPTIMIZE_AXIS. 'undefined' uses legacy rotations
   },
   comments: {
     permittedCommentChars: " abcdefghijklmnopqrstuvwxyz0123456789.,=_-", // letters are not case sensitive, use option 'outputFormat' below. Set to 'undefined' to allow any character
@@ -601,7 +601,7 @@ function onSection() {
   var initialPosition = getFramePosition(currentSection.getInitialPosition());
   if (!insertToolCall) { // G100 tool call macro does handle initial positioning
     var isRequired = state.retractedZ || !state.lengthCompensationActive  || (!isFirstSection() && getPreviousSection().isMultiAxis());
-    if (currentSection.isMultiAxis()) {
+    if (currentSection.isMultiAxis() || (currentSection.isOptimizedForMachine() && isTCPSupportedByOperation(currentSection))) {
       onCommand(COMMAND_LOAD_TOOL);
       forceAny();
     } else {
