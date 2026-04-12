@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44195 c67837c91fb96c689e965d0ae2b5289c6a8b646c $
-  $Date: 2025-09-16 09:02:54 $
+  $Revision: 44200 eac4fddfb8fed61fab5770b08ff08391d3d42a90 $
+  $Date: 2025-10-21 08:37:43 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -202,6 +202,20 @@ properties = {
     ],
     value: "-1"
   },
+  useMachiningLoadMonitor: {
+    title      : "Machining Load Monitor",
+    description: "Specifies if the Machining Load Monitor code (M341/M342/M343) should be output in nc code.",
+    group      : "preferences",
+    type       : "enum",
+    values     : [
+      {title:"Off", id:"-1"},
+      {title:"M341 ON", id:"341"},
+      {title:"M342 ON-MAX ONLY", id:"342"},
+      {title:"M343 ON-MIN ONLY", id:"343"},
+    ],
+    value: "-1",
+    scope: "post"
+  },
   useInverseTime: {
     title      : "Use inverse time feedrates",
     description: "'Yes' enables inverse time feedrates, 'No' outputs DPM feedrates.",
@@ -293,6 +307,7 @@ var fourthAxisClamp = createOutputVariable({}, mFormat);
 var fifthAxisClamp = createOutputVariable({}, mFormat);
 var sixthAxisClamp = createOutputVariable({}, mFormat);
 var washdownModal = createOutputVariable({}, mFormat);
+var machineLoadMonitorOutput = createOutputVariable({current:340}, mFormat);
 
 var settings = {
   coolant: {
@@ -634,6 +649,9 @@ function onSection() {
     }
   }
 
+  // output the Machining Load Monitor code
+  setMachineLoadMonitor(true, insertToolCall);
+
   if (isProbeOperation()) {
     validate(probeVariables.probeAngleMethod != "G68", "You cannot probe while G68 Rotation is in effect.");
     validate(probeVariables.probeAngleMethod != "G54.4", "You cannot probe while workpiece setting error compensation G54.4 is enabled.");
@@ -644,6 +662,24 @@ function onSection() {
   }
   if (typeof inspectionProcessSectionStart == "function") {
     inspectionProcessSectionStart();
+  }
+}
+
+function setMachineLoadMonitor(enable, insertToolCall) {
+  if (getProperty("useMachiningLoadMonitor") == "-1") {
+    return;
+  }
+  var loadMonitorCode;
+  if (enable && tool.type != TOOL_PROBE) { // enable machine load monitoring
+    if (insertToolCall || forceSpindleSpeed || isSpindleSpeedDifferent()) {
+      machineLoadMonitorOutput.reset();
+    }
+    loadMonitorCode = machineLoadMonitorOutput.format(parseInt(getProperty("useMachiningLoadMonitor"), 10));
+  } else { // disable machine load monitoring
+    loadMonitorCode = machineLoadMonitorOutput.format(340);
+  }
+  if (loadMonitorCode) {
+    writeBlock(loadMonitorCode, formatComment("MACHINING LOAD MONITOR " + (machineLoadMonitorOutput.getCurrent() == 340 ? "OFF" : "ON")));
   }
 }
 
@@ -1590,6 +1626,7 @@ function onCommand(command) {
     writeBlock(sOutput.format(spindleSpeed), mFormat.format(tool.clockwise ? 3 : 4));
     return;
   case COMMAND_LOAD_TOOL:
+    setMachineLoadMonitor(false); // disable machine load monitoring
     // Output modal commands here
     forceModals();
     writeBlock(gPlaneModal.format(17), gAbsIncModal.format(90), gFeedModeModal.format(94));
@@ -1793,6 +1830,7 @@ function onClose() {
 
   setCoolant(COOLANT_OFF);
   if (tool.type != TOOL_PROBE) {
+    setMachineLoadMonitor(false); // disable machine load monitoring
     if (getProperty("washdownCoolant") == "programEnd") {
       writeBlock(washdownModal.format(washdownCoolant.on));
     }
