@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44214 1f74fb3c348cc93e66ee15e354e2015b2aaf19e6 $
-  $Date: 2026-02-17 04:16:48 $
+  $Revision: 44220 2b98af3e523dc041217e3860e4ea3f1fe5d949f9 $
+  $Date: 2026-04-01 17:40:42 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -2978,7 +2978,8 @@ var smoothing = {
   force      : false // smoothing needs to be forced out in this operation
 };
 
-function initializeSmoothing() {
+function initializeSmoothing(_section) {
+  var _section = _section !== undefined ? _section : currentSection;
   var smoothingSettings = settings.smoothing;
   var previousLevel = smoothing.level;
   var previousTolerance = xyzFormat.getResultingValue(smoothing.tolerance);
@@ -2989,15 +2990,15 @@ function initializeSmoothing() {
   var thresholdFinishing = xyzFormat.getResultingValue(smoothingSettings.thresholdFinishing);
 
   // determine new smoothing levels and tolerances
-  smoothing.level = parseInt(getProperty("useSmoothing"), 10);
+  smoothing.level = parseInt(_section.getProperty("useSmoothing"), 10);
   smoothing.level = isNaN(smoothing.level) ? -1 : smoothing.level;
-  smoothing.tolerance = xyzFormat.getResultingValue(Math.max(getParameter("operation:tolerance", thresholdFinishing), 0));
+  smoothing.tolerance = xyzFormat.getResultingValue(Math.max(_section.getParameter("operation:tolerance", thresholdFinishing), 0));
 
   if (smoothing.level == 9999) {
     if (smoothingSettings.autoLevelCriteria == "stock") { // determine auto smoothing level based on stockToLeave
-      var stockToLeave = xyzFormat.getResultingValue(getParameter("operation:stockToLeave", getParameter("operation:verticalStockToLeave", 0)));
-      var verticalStockToLeave = xyzFormat.getResultingValue(getParameter("operation:verticalStockToLeave", stockToLeave));
-      if (((stockToLeave >= thresholdRoughing) && (verticalStockToLeave >= thresholdRoughing)) || getParameter("operation:strategy", "") == "face") {
+      var stockToLeave = xyzFormat.getResultingValue(_section.getParameter("operation:stockToLeave", _section.getParameter("operation:verticalStockToLeave", 0)));
+      var verticalStockToLeave = xyzFormat.getResultingValue(_section.getParameter("operation:verticalStockToLeave", stockToLeave));
+      if (((stockToLeave >= thresholdRoughing) && (verticalStockToLeave >= thresholdRoughing)) || _section.getParameter("operation:strategy", "") == "face") {
         smoothing.level = smoothingSettings.roughing; // set roughing level
       } else {
         if (((stockToLeave >= thresholdSemiFinishing) && (stockToLeave < thresholdRoughing)) &&
@@ -3011,7 +3012,7 @@ function initializeSmoothing() {
         }
       }
     } else { // detemine auto smoothing level based on operation tolerance instead of stockToLeave
-      if (smoothing.tolerance >= thresholdRoughing || getParameter("operation:strategy", "") == "face") {
+      if (smoothing.tolerance >= thresholdRoughing || _section.getParameter("operation:strategy", "") == "face") {
         smoothing.level = smoothingSettings.roughing; // set roughing level
       } else {
         if (((smoothing.tolerance >= thresholdSemiFinishing) && (smoothing.tolerance < thresholdRoughing))) {
@@ -3027,8 +3028,11 @@ function initializeSmoothing() {
 
   if (smoothing.level == -1) { // useSmoothing is disabled
     smoothing.isAllowed = false;
-  } else { // do not output smoothing for the following operations
-    smoothing.isAllowed = !(currentSection.getTool().type == TOOL_PROBE || isDrillingCycle());
+  } else {
+    smoothing.isAllowed = !(_section.getTool().type == TOOL_PROBE || isDrillingCycle(_section)) || (_section.isConnectionSection && _section.isConnectionSection() && _section.isMultiAxis());
+    if (isFirstSection()) {
+      smoothing.isActive = undefined;
+    }
   }
   if (!smoothing.isAllowed) {
     smoothing.level = -1;
