@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44184 4a476cddfb340b6d03fbc2675407091c182605b4 $
-  $Date: 2025-06-25 11:13:43 $
+  $Revision: 44186 23bde517b464fd826f24aaa369bf2672c04a67ff $
+  $Date: 2025-07-07 15:28:08 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -355,7 +355,7 @@ var settings = {
     probeAngleVariables    : {x:"#135", y:"#136", z:0, i:0, j:0, k:1, r:"#144", baseParamG54x4:26000, baseParamAxisRot:5200, method:0}, // specifies variables for the angle compensation macros, method 0 = Fanuc, 1 = Haas
     allowIndexingWCSProbing: false // specifies that probe WCS with tool orientation is supported
   },
-  maximumSequenceNumber: undefined, // the maximum sequence number (Nxxx), use 'undefined' for unlimited
+  maximumSequenceNumber: 999999, // the maximum sequence number (Nxxx), use 'undefined' for unlimited
   polarCycleExpandMode : 1 // 0=EXPAND_NONE: Does not expand any cycles. 1=EXPAND_TCP: Expands drilling cycles, when TCP is on. 2=EXPAND_NON_TCP: Expands drilling cycles, when TCP is off. 3=EXPAND_ALL: Expands all drilling cycles
 };
 
@@ -3646,14 +3646,12 @@ function inspectionWriteWorkplaneTransform() {
   var abc = orientation.getEuler2(EULER_XYZ_S);
   if (getProperty("useLiveConnection")) {
     liveConnectorInterface("WORKPLANE");
-    writeBlock(inspectionVariables.liveConnectionWPA, "=", abcFormat.format(abc.x));
-    writeBlock(inspectionVariables.liveConnectionWPB, "=", abcFormat.format(abc.y));
-    writeBlock(inspectionVariables.liveConnectionWPC, "=", abcFormat.format(abc.z));
-    forceSequenceNumbers(true);
+    writeln(inspectionVariables.liveConnectionWPA + " = " + abcFormat.format(abc.x));
+    writeln(inspectionVariables.liveConnectionWPB + " = " + abcFormat.format(abc.y));
+    writeln(inspectionVariables.liveConnectionWPC + " = " + abcFormat.format(abc.z));
     writeBlock("IF [" + inspectionVariables.workplaneStartAddress, "NE -1] GOTO" + skipNLines(2));
     writeBlock(inspectionVariables.workplaneStartAddress, "=", inspectionGetToolpathId(currentSection));
-    writeBlock(" ");
-    forceSequenceNumbers(false);
+    writeBlock(" "); // do not remove, required for GOTO functionality
   }
 
   defineLocalVariable(1, abcFormat.format(abc.x));
