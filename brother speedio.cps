@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44193 1149e30b52916b05f152417f11503813ca6219b2 $
-  $Date: 2025-09-04 06:14:22 $
+  $Revision: 44195 c67837c91fb96c689e965d0ae2b5289c6a8b646c $
+  $Date: 2025-09-16 09:02:54 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -552,7 +552,7 @@ function onSection() {
       }
       forceABC();
     } else {
-      if (insertToolCall || isNewWorkPlane) {
+      if (insertToolCall || newWorkPlane) {
         cancelWorkPlane();
       }
       if (insertToolCall || smoothing.cancel) {
@@ -2197,17 +2197,20 @@ function onPassThrough(text) {
 
 function forceModals() {
   if (arguments.length == 0) { // reset all modal variables listed below
-    if (typeof gMotionModal != "undefined") {
-      gMotionModal.reset();
+    var modals = [
+      "gMotionModal",
+      "gPlaneModal",
+      "gAbsIncModal",
+      "gFeedModeModal",
+      "feedOutput"
+    ];
+    if (operationNeedsSafeStart && (typeof currentSection != "undefined" && currentSection.isMultiAxis())) {
+      modals.push("fourthAxisClamp", "fifthAxisClamp", "sixthAxisClamp");
     }
-    if (typeof gPlaneModal != "undefined") {
-      gPlaneModal.reset();
-    }
-    if (typeof gAbsIncModal != "undefined") {
-      gAbsIncModal.reset();
-    }
-    if (typeof gFeedModeModal != "undefined") {
-      gFeedModeModal.reset();
+    for (var i = 0; i < modals.length; ++i) {
+      if (typeof this[modals[i]] != "undefined") {
+        this[modals[i]].reset();
+      }
     }
   } else {
     for (var i in arguments) {
@@ -2638,7 +2641,6 @@ function writeToolCall(tool, insertToolCall) {
 }
 // <<<<< INCLUDED FROM include_files/writeToolCall.cpi
 // >>>>> INCLUDED FROM include_files/startSpindle.cpi
-
 function startSpindle(tool, insertToolCall) {
   if (tool.type != TOOL_PROBE) {
     var spindleSpeedIsRequired = insertToolCall || forceSpindleSpeed || isFirstSection() ||
@@ -2949,8 +2951,8 @@ function initializeSmoothing() {
 
   if (smoothing.level == 9999) {
     if (smoothingSettings.autoLevelCriteria == "stock") { // determine auto smoothing level based on stockToLeave
-      var stockToLeave = xyzFormat.getResultingValue(getParameter("operation:stockToLeave", 0));
-      var verticalStockToLeave = xyzFormat.getResultingValue(getParameter("operation:verticalStockToLeave", 0));
+      var stockToLeave = xyzFormat.getResultingValue(getParameter("operation:stockToLeave", getParameter("operation:verticalStockToLeave", 0)));
+      var verticalStockToLeave = xyzFormat.getResultingValue(getParameter("operation:verticalStockToLeave", stockToLeave));
       if (((stockToLeave >= thresholdRoughing) && (verticalStockToLeave >= thresholdRoughing)) || getParameter("operation:strategy", "") == "face") {
         smoothing.level = smoothingSettings.roughing; // set roughing level
       } else {
