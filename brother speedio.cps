@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44200 eac4fddfb8fed61fab5770b08ff08391d3d42a90 $
-  $Date: 2025-10-21 08:37:43 $
+  $Revision: 44202 75321388625570b1eb8f09c1a5b057c8e188ae50 $
+  $Date: 2025-11-07 10:23:36 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -2414,7 +2414,7 @@ var isTcpOn;
   machineSimulation({x:toPreciseUnit(200, MM), y:toPreciseUnit(200, MM), coordinates:MACHINE, mode:TOOLCHANGE});
 */
 function machineSimulation(parameters) {
-  if (revision < 50198 || skipBlocks) {
+  if (revision < 50198 || skipBlocks || (getSimulationStreamPath() == "" && !debugSimulation)) {
     return; // return when post kernel revision is lower than 50198 or when skipBlocks is enabled
   }
   getAxisLimit = function(axis, limit) {
