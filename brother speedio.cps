@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44213 2a132b5cae8d5827ea3f7d1f18907fb5fa628933 $
-  $Date: 2026-02-11 06:46:11 $
+  $Revision: 44214 1f74fb3c348cc93e66ee15e354e2015b2aaf19e6 $
+  $Date: 2026-02-17 04:16:48 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -25,7 +25,7 @@ setCodePage("ascii");
 
 capabilities = CAPABILITY_MILLING | CAPABILITY_MACHINE_SIMULATION;
 tolerance = spatial(0.002, MM);
-if (typeof revision == "number") {
+if (typeof revision == "number" && typeof supportedFeatures != "undefined") {
   supportedFeatures |= revision >= 50328 ? FEATURE_MACHINE_ROTARY_ANGLES : 0;
 }
 
