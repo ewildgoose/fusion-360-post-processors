@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44209 3038eea6b5766ff091fd38cd623d9bc6a35075fa $
-  $Date: 2026-01-07 13:44:58 $
+  $Revision: 44210 aab7925640b48c5f8f0e2cc46a4d4c4f8555a5e6 $
+  $Date: 2026-01-20 22:37:45 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -826,9 +826,9 @@ function writeDrillCycle(cycle, x, y, z) {
         writeBlock(
           gRetractModal.format(98), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 78 : 77),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
-          conditional((unit == IN), "J" + xyzFormat.format(threadsPerInch)),
-          conditional((unit == MM), "I" + xyzFormat.format(threadPitch)),
-          conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
+          unit == IN ? "J" + xyzFormat.format(threadsPerInch) : "",
+          unit == MM ? "I" + xyzFormat.format(threadPitch) : "",
+          getProperty("doubleTapWithdrawSpeed") ? "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2) : ""
         );
       } else {
         writeBlock(
@@ -847,9 +847,9 @@ function writeDrillCycle(cycle, x, y, z) {
         writeBlock(
           gRetractModal.format(98), gCycleModal.format(78),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
-          conditional((unit == IN), "J" + xyzFormat.format(threadsPerInch)),
-          conditional((unit == MM), "I" + xyzFormat.format(threadPitch)),
-          conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
+          unit == IN ? "J" + xyzFormat.format(threadsPerInch) : "",
+          unit == MM ? "I" + xyzFormat.format(threadPitch) : "",
+          getProperty("doubleTapWithdrawSpeed") ? "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2) : ""
         );
       } else {
         writeBlock(
@@ -868,9 +868,9 @@ function writeDrillCycle(cycle, x, y, z) {
         writeBlock(
           gRetractModal.format(98), gCycleModal.format(77),
           getCommonCycle(x, y, cycle.bottom, cycle.retract),
-          conditional((unit == IN), "J" + xyzFormat.format(threadsPerInch)),
-          conditional((unit == MM), "I" + xyzFormat.format(threadPitch)),
-          conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
+          unit == IN ? "J" + xyzFormat.format(threadsPerInch) : "",
+          unit == MM ? "I" + xyzFormat.format(threadPitch) : "",
+          getProperty("doubleTapWithdrawSpeed") ? "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2) : ""
         );
       } else {
         writeBlock(
@@ -895,9 +895,9 @@ function writeDrillCycle(cycle, x, y, z) {
             gRetractModal.format(98), gCycleModal.format((tool.type == TOOL_TAP_LEFT_HAND) ? 78 : 77),
             getCommonCycle(x, y, cycle.bottom, cycle.retract),
             "Q" + xyzFormat.format(cycle.incrementalDepth),
-            conditional((unit == IN), "J" + xyzFormat.format(threadsPerInch)),
-            conditional((unit == MM), "I" + xyzFormat.format(threadPitch)),
-            conditional(getProperty("doubleTapWithdrawSpeed"), "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2))
+            unit == IN ? "J" + xyzFormat.format(threadsPerInch) : "",
+            unit == MM ? "I" + xyzFormat.format(threadPitch) : "",
+            getProperty("doubleTapWithdrawSpeed") ? "L" + (spindleSpeed * 2 > 6000 ? 6000 : spindleSpeed * 2) : ""
           );
         } else { // G84/G74 does not support chip breaking
           error(localize("Tapping with chip breaking is not supported by the G74/G84 cycle."));
@@ -1424,8 +1424,8 @@ function writeProbeCycle(cycle, x, y, z) {
       protectedProbeMove(cycle, x, y, z - cycle.depth);
       writeBlock(
         gFormat.format(65), "P" + 8815, xOutput.format(cornerX), yOutput.format(cornerY),
-        conditional(cornerI != 0, "I" + xyzFormat.format(cornerI)),
-        conditional(cornerJ != 0, "J" + xyzFormat.format(cornerJ)),
+        cornerI != 0 ? "I" + xyzFormat.format(cornerI) : "",
+        cornerJ != 0 ? "J" + xyzFormat.format(cornerJ) : "",
         "Q" + xyzFormat.format(cycle.probeOvertravel),
         getProbingArguments(cycle, true)
       );
@@ -1451,8 +1451,8 @@ function writeProbeCycle(cycle, x, y, z) {
     if (getProperty("probingType") == "Renishaw") {
       writeBlock(
         gFormat.format(65), "P" + 8816, xOutput.format(cornerX), yOutput.format(cornerY),
-        conditional(cornerI != 0, "I" + xyzFormat.format(cornerI)),
-        conditional(cornerJ != 0, "J" + xyzFormat.format(cornerJ)),
+        cornerI != 0 ? "I" + xyzFormat.format(cornerI) : "",
+        cornerJ != 0 ? "J" + xyzFormat.format(cornerJ) : "",
         "Q" + xyzFormat.format(cycle.probeOvertravel),
         getProbingArguments(cycle, true)
       );
@@ -1645,9 +1645,9 @@ function onCommand(command) {
       abc ? cOutput.format(abc.z) : undefined,
       (getProperty("preloadTool") && preloadTool) ? "L" + toolFormat.format(preloadTool.number) : undefined,
       hFormat.format(tool.lengthOffset),
-      conditional(tool.type != TOOL_PROBE, diameterOffsetFormat.format(tool.diameterOffset)),
-      conditional(tool.type != TOOL_PROBE, sOutput.format(spindleSpeed)),
-      conditional(tool.type != TOOL_PROBE, mFormat.format(tool.clockwise ? 3 : 4))
+      tool.type != TOOL_PROBE ? diameterOffsetFormat.format(tool.diameterOffset) : "",
+      tool.type != TOOL_PROBE ? sOutput.format(spindleSpeed) : "",
+      tool.type != TOOL_PROBE ? mFormat.format(tool.clockwise ? 3 : 4) : ""
     );
     writeComment(tool.comment);
     currentWorkPlaneABC = abc ? abc : currentWorkPlaneABC; // workplane is set with the G100 command
@@ -1895,6 +1895,9 @@ function activateMachine() {
   // identify if any of the rotary axes has TCP enabled
   var axes = [machineConfiguration.getAxisU(), machineConfiguration.getAxisV(), machineConfiguration.getAxisW()];
   tcp.isSupportedByMachine = axes.some(function(axis) {return axis.isEnabled() && axis.isTCPEnabled();}); // true if TCP is enabled on any rotary axis
+  if (tcp.isSupportedByMachine) {
+    bufferRotaryMoves = false; // disable bufferRotaryMoves if TCP is enabled on any rotary axis
+  }
 
   // save multi-axis feedrate settings from machine configuration
   var mode = machineConfiguration.getMultiAxisFeedrateMode();
