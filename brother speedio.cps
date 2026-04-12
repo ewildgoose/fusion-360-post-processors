@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44180 532b0f074e728f621fe2e2df6c1d4f67ef22ea16 $
-  $Date: 2025-05-26 11:21:58 $
+  $Revision: 44182 7116c353db967b3101893a9fbf082bfdfea871ba $
+  $Date: 2025-06-13 07:24:07 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -355,7 +355,8 @@ var settings = {
     probeAngleVariables    : {x:"#135", y:"#136", z:0, i:0, j:0, k:1, r:"#144", baseParamG54x4:26000, baseParamAxisRot:5200, method:0}, // specifies variables for the angle compensation macros, method 0 = Fanuc, 1 = Haas
     allowIndexingWCSProbing: false // specifies that probe WCS with tool orientation is supported
   },
-  maximumSequenceNumber: undefined // the maximum sequence number (Nxxx), use 'undefined' for unlimited
+  maximumSequenceNumber: undefined, // the maximum sequence number (Nxxx), use 'undefined' for unlimited
+  polarCycleExpandMode : EXPAND_TCP // EXPAND_NONE: Does not expand any cycles. EXPAND_TCP: Expands drilling cycles, when TCP is on. EXPAND_NON_TCP: Expands drilling cycles, when TCP is off. EXPAND_ALL: Expands all drilling cycles
 };
 
 var washdownCoolant = {on:400, off:401};
@@ -640,9 +641,14 @@ function onCycle() {
 
 function getCommonCycle(x, y, z, r) {
   forceXYZ(); // force xyz on first drill hole of any cycle
-  return [xOutput.format(x), yOutput.format(y),
-    zOutput.format(z),
-    "R" + xyzFormat.format(r)];
+  if (currentSection.polarMode != POLAR_MODE_OFF && currentSection.isMultiAxis()) {
+    var polarPosition = getPolarPosition(x, y, z);
+    return [xOutput.format(polarPosition.first.x), yOutput.format(polarPosition.first.y), zOutput.format(polarPosition.first.z),
+      aOutput.format(polarPosition.second.x), bOutput.format(polarPosition.second.y), cOutput.format(polarPosition.second.z),
+      "R" + xyzFormat.format(r)];
+  } else {
+    return [xOutput.format(x), yOutput.format(y), zOutput.format(z), "R" + xyzFormat.format(r)];
+  }
 }
 
 /** Convert approach to sign. */
@@ -694,6 +700,7 @@ function writeDrillCycle(cycle, x, y, z) {
       repositionToCycleClearance(cycle, x, y, z);
     }
 
+    writeBlock(gFeedModeModal.format(94));
     var F = cycle.feedrate;
     var P = !cycle.dwell ? 0 : clamp(1, cycle.dwell, 99999999); // in seconds
 
@@ -923,7 +930,17 @@ function writeDrillCycle(cycle, x, y, z) {
     if (cycleExpanded) {
       expandCyclePoint(x, y, z);
     } else {
-      writeBlock(xOutput.format(x), yOutput.format(y));
+      if (!xyzFormat.areDifferent(x, xOutput.getCurrent()) && !xyzFormat.areDifferent(y, yOutput.getCurrent())) {
+        xOutput.reset(); // at least one axis is required
+      }
+      if (currentSection.polarMode != POLAR_MODE_OFF && currentSection.isMultiAxis()) {
+        var polarPosition = getPolarPosition(x, y, z);
+        setCurrentPositionAndDirection(polarPosition);
+        writeBlock(xOutput.format(polarPosition.first.x), yOutput.format(polarPosition.first.y),
+          aOutput.format(polarPosition.second.x), bOutput.format(polarPosition.second.y), cOutput.format(polarPosition.second.z));
+      } else {
+        writeBlock(xOutput.format(x), yOutput.format(y));
+      }
     }
   }
 }
@@ -1822,6 +1839,10 @@ function activateMachine() {
   }
   if (typeof safeRetractDistance == "number" && getProperty("safeRetractDistance") != undefined && getProperty("safeRetractDistance") != 0) {
     safeRetractDistance = getProperty("safeRetractDistance");
+  }
+
+  if (revision >= 50294)  {
+    activateAutoPolarMode({tolerance:tolerance / 2, optimizeType:OPTIMIZE_AXIS, expandCycles:getSetting("polarCycleExpandMode", EXPAND_ALL)});
   }
 
   if (machineConfiguration.isHeadConfiguration() && getSetting("workPlaneMethod.compensateToolLength", false)) {
