@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44210 aab7925640b48c5f8f0e2cc46a4d4c4f8555a5e6 $
-  $Date: 2026-01-20 22:37:45 $
+  $Revision: 44212 c7ed61276584fb79ba090d81c124dfe96b1dcb9d $
+  $Date: 2026-02-04 16:48:49 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -3815,8 +3815,7 @@ function inspectionWriteWorkplaneTransform() {
 }
 
 function writeProbingToolpathInformation(cycleDepth) {
-  defineLocalVariable(1, inspectionGetToolpathId(currentSection));
-  writeln(formatLocalVariable("DPRNT[TOOLPATHID*", 1, "[35]]"));
+  writeln("DPRNT[TOOLPATHID*" + inspectionGetToolpathId(currentSection) + "]");
   if (isInspectionOperation()) {
     writeln("DPRNT[TOOLPATH*" + getParameter("operation-comment").toUpperCase().replace(/[()]/g, "") + "]");
   } else {
