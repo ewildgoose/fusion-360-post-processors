@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44192 e342e4ca9f31b4c80e76467e990dd05b641d3c43 $
-  $Date: 2025-09-01 12:45:50 $
+  $Revision: 44193 1149e30b52916b05f152417f11503813ca6219b2 $
+  $Date: 2025-09-04 06:14:22 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -165,6 +165,14 @@ properties = {
     value      : false,
     scope      : "post"
   },
+  useClampCodes: {
+    title      : "Use clamp codes",
+    description: "Specifies whether clamp codes for rotary axes should be output. For simultaneous toolpaths rotary axes will always get unclamped.",
+    group      : "multiAxis",
+    type       : "boolean",
+    value      : false,
+    scope      : "post"
+  },
   smoothingMode: {
     title      : "High accuracy mode",
     description: "Select the high accuracy mode supported by the control.",
@@ -282,7 +290,8 @@ var gUnitModal = createOutputVariable({}, gFormat); // modal group 6 // G20-21
 var gCycleModal = createOutputVariable({control:CONTROL_FORCE}, gFormat); // modal group 9 // G81, ...
 var gRetractModal = createOutputVariable({}, gFormat); // modal group 10 // G98-99
 var fourthAxisClamp = createOutputVariable({}, mFormat);
-var fithAxisClamp = createOutputVariable({}, mFormat);
+var fifthAxisClamp = createOutputVariable({}, mFormat);
+var sixthAxisClamp = createOutputVariable({}, mFormat);
 var washdownModal = createOutputVariable({}, mFormat);
 
 var settings = {
@@ -360,6 +369,7 @@ var settings = {
 };
 
 var washdownCoolant = {on:400, off:401};
+var currentToolNumber = undefined;
 
 var probeVariables = {
   outputRotationCodes: false, // determines if it is required to output rotation codes
@@ -442,7 +452,7 @@ function onOpen() {
   }
   activateMachine(); // enable the machine optimizations and settings
 
-  allowedCircularPlanes = (is3D() || !settings.workPlaneMethod.useTiltedWorkplane) ? undefined : 1 << PLANE_XY; // only XY plane is supported for 3+2
+  setAllowedCircularPlanes(-1);
 
   if (!getProperty("separateWordsWithSpace")) {
     setWordSeparator("");
@@ -463,6 +473,10 @@ function onOpen() {
     settings.smoothing.finishing = 2;
     break;
   }
+
+  fourthAxisClamp.format(443); // Default 4th axis modal code to be clamped
+  fifthAxisClamp.format(441); // Default 5th axis modal code to be clamped
+  sixthAxisClamp.format(445); // Default 6th axis modal code to be clamped
 
   if (programName) {
     writeComment(programName + conditional(programComment, SP + formatComment(programComment)));
@@ -639,7 +653,7 @@ function onDwell(seconds) {
     warning(subst(localize("Dwelling time of '%1' exceeds the maximum value of '%2' in operation '%3'"), seconds, maxValue, getParameter("operation-comment", "")));
   }
   seconds = clamp(1, seconds, 99999999);
-  writeBlock(gFeedModeModal.format(94), gFormat.format(4), "P" + secFormat.format(seconds));
+  writeBlock(gFormat.format(4), "P" + secFormat.format(seconds));
 }
 
 function onSpindleSpeed(spindleSpeed) {
@@ -1619,20 +1633,32 @@ function onCommand(command) {
     machineSimulation({mode:tcp.isSupportedByOperation ? TCPOFF : undefined});
     machineSimulation({x:prePosition.x, y:prePosition.y, mode:tcp.isSupportedByOperation ? TWPON : undefined, eulerAngles:angles});
     machineSimulation(tcp.isSupportedByOperation ? {x:start.x, y:start.y, z:start.z} : {z:start.z});
+    currentToolNumber = tool.number;
     return;
   case COMMAND_LOCK_MULTI_AXIS:
     if (machineConfiguration.isMultiAxisConfiguration()) {
-      // writeBlock(fourthAxisClamp.format(25)); // lock 4th axis
-      if (machineConfiguration.getNumberOfAxes() > 4) {
-        // writeBlock(fifthAxisClamp.format(35)); // lock 5th axis
+      if (aOutput.isEnabled()) {
+        writeBlock(fourthAxisClamp.format(443)); // lock A-axis
+      }
+      if (bOutput.isEnabled()) {
+        writeBlock(fifthAxisClamp.format(441)); // lock B-axis
+      }
+      if (cOutput.isEnabled()) {
+        writeBlock(sixthAxisClamp.format(445)); // lock C-axis
       }
     }
     return;
   case COMMAND_UNLOCK_MULTI_AXIS:
-    if (machineConfiguration.isMultiAxisConfiguration()) {
-      // writeBlock(fourthAxisClamp.format(26)); // unlock 4th axis
-      if (machineConfiguration.getNumberOfAxes() > 4) {
-        // writeBlock(fifthAxisClamp.format(36)); // unlock 5th axis
+    var outputClampCodes = getProperty("useClampCodes") || currentSection.isMultiAxis();
+    if (outputClampCodes && machineConfiguration.isMultiAxisConfiguration()) {
+      if (aOutput.isEnabled()) {
+        writeBlock(fourthAxisClamp.format(442)); // unlock A-axis
+      }
+      if (bOutput.isEnabled()) {
+        writeBlock(fifthAxisClamp.format(440)); // unlock B-axis
+      }
+      if (cOutput.isEnabled()) {
+        writeBlock(sixthAxisClamp.format(444)); // unlock C-axis
       }
     }
     return;
@@ -1692,6 +1718,62 @@ function onSectionEnd() {
     inspectionProcessSectionEnd();
   }
   forceAny();
+  setAllowedCircularPlanes(currentSection.getId());
+}
+
+function setAllowedCircularPlanes(sectionId) {
+  if ((sectionId + 1) < getNumberOfSections()) {
+    var section = getSection(sectionId + 1);
+    allowedCircularPlanes = ((section.getType() == TYPE_MILLING) && getSetting("workPlaneMethod.useTiltedWorkplane", false) && defineWorkPlane(section, false).isNonZero()) ?
+      1 << PLANE_XY : undefined; // only XY plane is supported for 3+2 in TWP state
+  }
+}
+
+function writeRetract() {
+  var retract = getRetractParameters.apply(this, arguments);
+  if (retract && retract.words.length > 0) {
+    if (typeof cancelWCSRotation == "function" && getSetting("retract.cancelRotationOnRetracting", false)) { // cancel rotation before retracting
+      cancelWCSRotation();
+    }
+    if (typeof disableLengthCompensation == "function" && getSetting("allowCancelTCPBeforeRetracting", false) && state.tcpIsActive) {
+      disableLengthCompensation(); // cancel TCP before retracting
+    }
+    if (retract.retractAxes[2] && state.tcpIsActive) {
+      writeBlock(gFormat.format(100), "T" + toolFormat.format(currentToolNumber));
+      machineSimulation({mode:RETRACTTOOLAXIS});
+      return;
+    }
+    for (var i in retract.words) {
+      var words = retract.singleLine ? retract.words : retract.words[i];
+      switch (retract.method) {
+      case "G28":
+        forceModals(gMotionModal, gAbsIncModal);
+        writeBlock(gFormat.format(28), gAbsIncModal.format(91), words);
+        writeBlock(gAbsIncModal.format(90));
+        break;
+      case "G53":
+        forceModals(gMotionModal);
+        writeBlock(gAbsIncModal.format(90), gFormat.format(53), gMotionModal.format(0), words);
+        break;
+      default:
+        if (typeof writeRetractCustom == "function") {
+          writeRetractCustom(retract);
+          return;
+        } else {
+          error(subst(localize("Unsupported safe position method '%1'"), retract.method));
+        }
+      }
+      machineSimulation({
+        x          : retract.singleLine || words.indexOf("X") != -1 ? retract.positions.x : undefined,
+        y          : retract.singleLine || words.indexOf("Y") != -1 ? retract.positions.y : undefined,
+        z          : retract.singleLine || words.indexOf("Z") != -1 ? retract.positions.z : undefined,
+        coordinates: MACHINE
+      });
+      if (retract.singleLine) {
+        break;
+      }
+    }
+  }
 }
 
 function onClose() {
@@ -1701,7 +1783,7 @@ function onClose() {
     writeBlock("PCLOS");
     isDPRNTopen = false;
   }
-  writeRetract(Z);
+  writeRetract(Z); // retract
   disableLengthCompensation(true);
 
   if (probeVariables.probeAngleMethod == "G68") {
@@ -1719,7 +1801,6 @@ function onClose() {
 
   var firstToolNumber = getSection(0).getTool().number;
   writeBlock(gFormat.format(100), "T" + toolFormat.format(firstToolNumber));
-  state.retractedZ = true; // tool call does a full retract along the z-axis
   if (getSetting("retract.homeXY.onProgramEnd", false)) {
     writeRetract(settings.retract.homeXY.onProgramEnd);
   }
@@ -3270,54 +3351,6 @@ function setWorkPlane(abc) {
   });
 }
 // <<<<< INCLUDED FROM include_files/workPlaneFunctions_fanuc.cpi
-// >>>>> INCLUDED FROM include_files/writeRetract_fanuc.cpi
-function writeRetract() {
-  var retract = getRetractParameters.apply(this, arguments);
-  if (retract && retract.words.length > 0) {
-    if (typeof cancelWCSRotation == "function" && getSetting("retract.cancelRotationOnRetracting", false)) { // cancel rotation before retracting
-      cancelWCSRotation();
-    }
-    if (typeof disableLengthCompensation == "function" && getSetting("allowCancelTCPBeforeRetracting", false) && state.tcpIsActive) {
-      disableLengthCompensation(); // cancel TCP before retracting
-    }
-    for (var i in retract.words) {
-      var words = retract.singleLine ? retract.words : retract.words[i];
-      switch (retract.method) {
-      case "G28":
-        forceModals(gMotionModal, gAbsIncModal);
-        writeBlock(gFormat.format(28), gAbsIncModal.format(91), words);
-        writeBlock(gAbsIncModal.format(90));
-        break;
-      case "G30":
-        forceModals(gMotionModal, gAbsIncModal);
-        writeBlock(gFormat.format(30), gAbsIncModal.format(91), words);
-        writeBlock(gAbsIncModal.format(90));
-        break;
-      case "G53":
-        forceModals(gMotionModal);
-        writeBlock(gAbsIncModal.format(90), gFormat.format(53), gMotionModal.format(0), words);
-        break;
-      default:
-        if (typeof writeRetractCustom == "function") {
-          writeRetractCustom(retract);
-          return;
-        } else {
-          error(subst(localize("Unsupported safe position method '%1'"), retract.method));
-        }
-      }
-      machineSimulation({
-        x          : retract.singleLine || words.indexOf("X") != -1 ? retract.positions.x : undefined,
-        y          : retract.singleLine || words.indexOf("Y") != -1 ? retract.positions.y : undefined,
-        z          : retract.singleLine || words.indexOf("Z") != -1 ? retract.positions.z : undefined,
-        coordinates: MACHINE
-      });
-      if (retract.singleLine) {
-        break;
-      }
-    }
-  }
-}
-// <<<<< INCLUDED FROM include_files/writeRetract_fanuc.cpi
 // >>>>> INCLUDED FROM include_files/initialPositioning_fanuc.cpi
 /**
  * Writes the initial positioning procedure for a section to get to the start position of the toolpath.
