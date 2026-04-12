@@ -1,11 +1,11 @@
 /**
-  Copyright (C) 2012-2025 by Autodesk, Inc.
+  Copyright (C) 2012-2026 by Autodesk, Inc.
   All rights reserved.
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44207 3c29ebc507e8e59a0898c47558016451f197da94 $
-  $Date: 2025-12-17 08:29:21 $
+  $Revision: 44209 3038eea6b5766ff091fd38cd623d9bc6a35075fa $
+  $Date: 2026-01-07 13:44:58 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -13,7 +13,7 @@
 description = "Brother Speedio";
 vendor = "Brother";
 vendorUrl = "http://www.brother.com";
-legal = "Copyright (C) 2012-2025 by Autodesk, Inc.";
+legal = "Copyright (C) 2012-2026 by Autodesk, Inc.";
 certificationLevel = 2;
 minimumRevision = 45917;
 
@@ -269,11 +269,11 @@ var hFormat = createFormat({prefix:"H", minDigitsLeft:2, decimals:1});
 var diameterOffsetFormat = createFormat({prefix:"D", minDigitsLeft:2, decimals:1});
 var probeWCSFormat = createFormat({decimals:0, type:FORMAT_REAL});
 
-var xyzFormat = createFormat({decimals:(unit == MM ? 3 : 4), forceDecimal:false});
+var xyzFormat = createFormat({decimals:(unit == MM ? 3 : 4)});
 var ijkFormat = createFormat({decimals:6, type:FORMAT_REAL}); // unitless
 var rFormat = xyzFormat; // radius
 var abcFormat = createFormat({decimals:3, type:FORMAT_REAL, scale:DEG});
-var feedFormat = createFormat({decimals:(unit == MM ? 0 : 1), forceDecimal:false});
+var feedFormat = createFormat({decimals:(unit == MM ? 0 : 1)});
 var inverseTimeFormat = createFormat({decimals:3, type:FORMAT_REAL});
 var toolFormat = createFormat({minDigitsLeft:2, decimals:1});
 var rpmFormat = createFormat({decimals:0});
@@ -3638,7 +3638,7 @@ var macroRoundingFormat = (unit == MM) ? "[53]" : "[44]";
 var isDPRNTopen = false;
 
 var WARNING_OUTDATED = 0;
-var toolpathIdFormat = createFormat({decimals:5, forceDecimal:true});
+var toolpathIdFormat = createFormat({decimals:5, type:FORMAT_REAL});
 var patternInstances = new Array();
 var initializePatternInstances = true; // initialize patternInstances array the first time inspectionGetToolpathId is called
 function inspectionGetToolpathId(section) {
