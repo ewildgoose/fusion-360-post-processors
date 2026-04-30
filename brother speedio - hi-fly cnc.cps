@@ -613,10 +613,10 @@ function onSection() {
   initializeSmoothing(); // initialize smoothing mode
 
   if (insertToolCall || newWorkOffset || newWorkPlane || smoothing.cancel || state.tcpIsActive || currentSection.isMultiAxis()) {
-    if (!insertToolCall) {
+    if (!insertToolCall || newWorkOffset || newWorkPlane || state.tcpIsActive || currentSection.isMultiAxis()) {
       writeRetract(Z); // retract
+      disableLengthCompensation();
     }
-    disableLengthCompensation();
     if (isFirstSection()) {
       cancelWorkPlane(machineConfiguration.isMultiAxisConfiguration() && settings.workPlaneMethod.useTiltedWorkplane);
       if (machineConfiguration.isMultiAxisConfiguration()) {
