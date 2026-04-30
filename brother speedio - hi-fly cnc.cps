@@ -8,6 +8,13 @@
   $Date: 2026-04-01 17:40:42 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
+
+  NOTES:
+  It's essential that you change:
+  - "User Param Switch 1": 0039 (Travel of X, Y or Z axis when tool length/tool position offset is changed) to true.
+    This allows the use of G49 without a Z param
+  - "User Param Switch 1": 0053 (Multiple M codes in one block) to true.
+    This allows the G100 tool change to start spindle + start coolant
 */
 
 description = "Brother Speedio";
