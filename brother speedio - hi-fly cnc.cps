@@ -17,10 +17,10 @@
     This allows the G100 tool change to start spindle + start coolant
 */
 
-description = "Brother Speedio";
+description = "Brother Speedio (Hi-Fly CNC)";
 vendor = "Brother";
 vendorUrl = "http://www.brother.com";
-legal = "Copyright (C) 2012-2026 by Autodesk, Inc.";
+legal = "Copyright (C) 2012-2026 by Autodesk, Inc, 2026 HiFly CNC";
 certificationLevel = 2;
 minimumRevision = 45917;
 
