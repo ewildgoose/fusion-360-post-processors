@@ -1473,7 +1473,7 @@ function writeProbeCycle(cycle, x, y, z) {
         "J" + xyzFormat.format(y),
         "R" + xyzFormat.format(-cycle.probeClearance),
         "S" + xyzFormat.format(cycle.width1),
-        "Z" + xyzFormat.format(z - cycle.depth),
+        "Z" + xyzFormat.format(z - cycle.depth + (tool.diameter /2)),
         "Y1",
         "Q" + xyzFormat.format(cycle.probeOvertravel),
         getProbingArguments(cycle, true)
