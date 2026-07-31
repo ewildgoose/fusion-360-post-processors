@@ -1500,7 +1500,7 @@ function writeProbeCycle(cycle, x, y, z) {
         "I" + xyzFormat.format(x),
         "J" + xyzFormat.format(y),
         "S" + xyzFormat.format(cycle.width1),
-        "Z" + xyzFormat.format(z - cycle.depth),
+        "Z" + xyzFormat.format(z - cycle.depth + (tool.diameter /2)),
         "Q" + xyzFormat.format(cycle.probeOvertravel),
         "R" + xyzFormat.format(cycle.probeClearance),
         getProbingArguments(cycle, true)
@@ -1533,7 +1533,7 @@ function writeProbeCycle(cycle, x, y, z) {
         "I" + xyzFormat.format(x),
         "J" + xyzFormat.format(y),
         "S" + xyzFormat.format(cycle.width1),
-        "Z" + xyzFormat.format(z - cycle.depth),
+        "Z" + xyzFormat.format(z - cycle.depth + (tool.diameter /2)),
         "Q" + xyzFormat.format(cycle.probeOvertravel),
         "R" + xyzFormat.format(cycle.probeClearance),
         getProbingArguments(cycle, true)
