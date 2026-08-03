@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44226 fcaa521d4c71c947f729a6871e6f3619e8022805 $
-  $Date: 2026-05-19 17:26:35 $
+  $Revision: 44227 2d605a9cc1536f48e73ceee9ddfbcbe5480ac34d $
+  $Date: 2026-05-26 11:43:01 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -928,7 +928,7 @@ function writeDrillCycle(cycle, x, y, z) {
       var dz = (gPlaneModal.getCurrent() == 17) ? cycle.backBoreDistance : 0;
       writeBlock(
         gRetractModal.format(98), gCycleModal.format(87),
-        getCommonCycle(x, y, cycle.bottom - cycle.backBoreDistance, cycle.bottom),
+        getCommonCycle(x, y, z + dz, cycle.bottom),
         "Q" + xyzFormat.format(cycle.shift),
         "P" + secFormat.format(P), // not optional
         cyclefeedOutput.format(F)
@@ -2651,6 +2651,9 @@ function writeWCS(section, wcsIsRequired) {
       writeBlock(section.wcs);
     });
     currentWorkOffset = section.workOffset;
+    if (revision >= 50338 && getCurrentSectionId() > 0 && section.workOffset != getPreviousSection().workOffset) {
+      simulation.activateWorkCoordsForNextOperation();
+    }
   }
 }
 // <<<<< INCLUDED FROM include_files/writeWCS.cpi
