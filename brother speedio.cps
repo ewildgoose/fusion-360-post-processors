@@ -4,8 +4,8 @@
 
   Brother Speedio post processor configuration.
 
-  $Revision: 44227 2d605a9cc1536f48e73ceee9ddfbcbe5480ac34d $
-  $Date: 2026-05-26 11:43:01 $
+  $Revision: 44229 e780fd31175d3ecc1f0eb61106a1f48cbb5c06bf $
+  $Date: 2026-06-12 11:32:13 $
 
   FORKID {C09133CD-6F13-4DFC-9EB8-41260FBB5B08}
 */
@@ -2405,6 +2405,8 @@ var WORK = "WORK CS";
 var MACHINE = "MACHINE CS";
 var MIN = "MIN";
 var MAX = "MAX";
+var SHORTEST = "SHORTEST";
+var PROGRAMMED = "PROGRAMMED";
 var WARNING_NON_RANGE = [0, 1, 2];
 var isTwpOn;
 var isTcpOn;
@@ -2422,9 +2424,11 @@ var isTcpOn;
  * @param {String} mode mode TCPON | TCPOFF | TWPON | TWPOFF | TOOLCHANGE | RETRACTTOOLAXIS
  * @param {String} coordinates WORK | MACHINE - if undefined, work coordinates will be used by default
  * @param {Number} eulerAngles the calculated Euler angles for the workplane
+ * @param {String} rotaryMode SHORTEST | PROGRAMMED - if undefined, the default rotary mode will be used
  * @example
   machineSimulation({a:abc.x, b:abc.y, c:abc.z, coordinates:MACHINE});
   machineSimulation({x:toPreciseUnit(200, MM), y:toPreciseUnit(200, MM), coordinates:MACHINE, mode:TOOLCHANGE});
+  machineSimulation({a:abc.x, b:abc.y, c:abc.z, coordinates:MACHINE, rotaryMode:SHORTEST});
 */
 function machineSimulation(parameters) {
   if (revision < 50198 || skipBlocks || (getSimulationStreamPath() == "" && !debugSimulation)) {
@@ -2451,6 +2455,7 @@ function machineSimulation(parameters) {
   var c = (isNaN(parameters.c) && parameters.c) ? error(rotaryAxesErrorMessage) : parameters.c;
   var coordinates = parameters.coordinates;
   var eulerAngles = parameters.eulerAngles;
+  var rotaryMode = parameters.rotaryMode;
   var feed = parameters.feed;
   if (feed === undefined && typeof gMotionModal !== "undefined") {
     feed = gMotionModal.getCurrent() !== 0;
@@ -2459,6 +2464,9 @@ function machineSimulation(parameters) {
   var performToolChange = mode == TOOLCHANGE;
   if (mode !== undefined && ![TCPON, TCPOFF, TWPON, TWPOFF, TOOLCHANGE, RETRACTTOOLAXIS].includes(mode)) {
     error(subst("Mode '%1' is not supported.", mode));
+  }
+  if (rotaryMode !== undefined && ![SHORTEST, PROGRAMMED].includes(rotaryMode)) {
+    error(subst(localize("Rotary mode '%1' is not supported."), rotaryMode));
   }
 
   // mode takes precedence over TCP/TWP states
@@ -2518,10 +2526,28 @@ function machineSimulation(parameters) {
       simulation.setMotionToRapid();
     }
 
+    var supportsRotaryMode = rotaryMode !== undefined && revision >= 50338;
+    var saveRotaryDirection = supportsRotaryMode ? simulation.getRotaryDirection() : undefined;
+    if (supportsRotaryMode) {
+      if (rotaryMode === SHORTEST) {
+        simulation.setRotaryToGoShortestDirection();
+      } else if (rotaryMode === PROGRAMMED) {
+        simulation.setRotaryToGoProgrammedDirection();
+      }
+    }
+
     if (coordinates != undefined && coordinates == MACHINE) {
       simulation.moveToTargetInMachineCoords();
     } else {
       simulation.moveToTargetInWorkCoords();
+    }
+
+    if (supportsRotaryMode) {
+      if (saveRotaryDirection === ROTARY_DIRECTION_AS_PROGRAMMED) {
+        simulation.setRotaryToGoProgrammedDirection();
+      } else {
+        simulation.setRotaryToGoShortestDirection();
+      }
     }
   }
   if (performToolChange) {
